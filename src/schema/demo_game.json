@@ -1,0 +1,20 @@
+{
+  "gameName": { "zh": "桌遊大師", "en": "Infinity Board" },
+  "players": [
+    { "id": "player1", "name": "玩家1", "tokens": [], "score": 0 },
+    { "id": "player2", "name": "玩家2", "tokens": [], "score": 0 }
+  ],
+  "tokens": [
+    { "id": "gold", "name": "金幣", "type": "resource" },
+    { "id": "gem", "name": "寶石", "type": "resource" },
+    { "id": "wheat", "name": "大麥", "type": "resource" }
+  ],
+  "actions": [
+    { "id": "buyToken", "name": "購買 Token", "parameters": ["tokenId"], "effect": "玩家選擇 tokenId，加入自身 tokens" }
+  ],
+  "rules": [
+    { "id": "winRule", "trigger": "onActionEnd", "condition": { "type": "hasTokenCount", "tokenId": "gold", "count": 3 }, "action": { "type": "winGame", "playerId": "{currentPlayer}" } }
+  ],
+  "turn": { "currentPlayerId": "player1", "actionsPerTurn": 1 }
+}
+
