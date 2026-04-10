@@ -10,6 +10,7 @@ export const createDragItem = (type: 'token' | 'card' | 'dice', id: string, name
 
 export const createBoardItem = (dragItem: DragItem, position: Position): BoardItem => {
   return {
+    instanceId: `${dragItem.id}_${Date.now()}`,
     id: dragItem.id,
     type: dragItem.type,
     position,

@@ -5,16 +5,25 @@
     { "id": "player2", "name": "玩家2", "tokens": [], "score": 0 }
   ],
   "tokens": [
-    { "id": "gold", "name": "金幣", "type": "resource" },
-    { "id": "gem", "name": "寶石", "type": "resource" },
+    { "id": "gold",  "name": "金幣", "type": "resource" },
+    { "id": "gem",   "name": "寶石", "type": "resource" },
     { "id": "wheat", "name": "大麥", "type": "resource" }
   ],
   "actions": [
-    { "id": "buyToken", "name": "購買 Token", "parameters": ["tokenId"], "effect": "玩家選擇 tokenId，加入自身 tokens" }
+    { "id": "gain_gold",  "name": "獲得金幣", "type": "gainToken",  "params": { "tokenId": "gold",  "count": 1 } },
+    { "id": "gain_gem",   "name": "獲得寶石", "type": "gainToken",  "params": { "tokenId": "gem",   "count": 1 } },
+    { "id": "gain_wheat", "name": "獲得大麥", "type": "gainToken",  "params": { "tokenId": "wheat", "count": 1 } },
+    { "id": "trade_gem",  "name": "換取寶石", "type": "tradeToken", "params": { "fromTokenId": "gold", "fromCount": 2, "toTokenId": "gem", "toCount": 1 } }
   ],
   "rules": [
-    { "id": "winRule", "trigger": "onActionEnd", "condition": { "type": "hasTokenCount", "tokenId": "gold", "count": 3 }, "action": { "type": "winGame", "playerId": "{currentPlayer}" } }
+    {
+      "id": "winRule",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "gold", "count": 3 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" }
+    }
   ],
-  "turn": { "currentPlayerId": "player1", "actionsPerTurn": 1 }
+  "turn": { "currentPlayerId": "player1", "actionsPerTurn": 1 },
+  "board": { "items": [] },
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
 }
-

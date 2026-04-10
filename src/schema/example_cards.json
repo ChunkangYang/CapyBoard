@@ -1,0 +1,29 @@
+{
+  "gameName": { "zh": "卡牌大師", "en": "Card Master" },
+  "players": [
+    { "id": "hero1", "name": "英雄甲", "tokens": [], "score": 0 },
+    { "id": "hero2", "name": "英雄乙", "tokens": [], "score": 0 }
+  ],
+  "tokens": [
+    { "id": "common",    "name": "普通牌",   "type": "card" },
+    { "id": "rare_mat",  "name": "稀有素材", "type": "resource" },
+    { "id": "rare_card", "name": "★ 稀有牌", "type": "card" }
+  ],
+  "actions": [
+    { "id": "draw",       "name": "抽普通牌", "type": "gainToken",  "params": { "tokenId": "common",   "count": 2 } },
+    { "id": "craft_mat",  "name": "提煉素材", "type": "tradeToken", "params": { "fromTokenId": "common",   "fromCount": 3, "toTokenId": "rare_mat",  "toCount": 1 } },
+    { "id": "craft_rare", "name": "合成稀有", "type": "tradeToken", "params": { "fromTokenId": "rare_mat", "fromCount": 3, "toTokenId": "rare_card", "toCount": 1 } }
+  ],
+  "rules": [
+    {
+      "id": "win_rare",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "rare_card", "count": 2 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" },
+      "priority": 0
+    }
+  ],
+  "turn": { "currentPlayerId": "hero1", "actionsPerTurn": 3 },
+  "board": { "items": [] },
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+}

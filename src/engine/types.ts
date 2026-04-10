@@ -17,11 +17,19 @@ export interface Token {
   properties?: Record<string, any>;
 }
 
+export type ActionType =
+  | 'gainToken'   // 玩家獲得 Token
+  | 'spendToken'  // 玩家消耗 Token
+  | 'tradeToken'  // 消耗 A 換得 B
+  | 'rollDice'    // 擲骰子
+  | 'drawCard'    // 抽牌
+  | 'moveToken';  // 移動 Token（棋盤）
+
 export interface Action {
   id: string;
   name: string;
-  parameters: string[];
-  effect: string;
+  type: ActionType;
+  params: Record<string, any>;
 }
 
 export interface Condition {
@@ -42,11 +50,25 @@ export interface Rule {
   trigger: 'onActionEnd' | 'onTurnEnd' | 'onObjectChange';
   condition: Condition;
   action: GameAction;
+  priority?: number;  // 數字越大越優先，預設 0
 }
 
 export interface Turn {
   currentPlayerId: string;
   actionsPerTurn: number;
+}
+
+export interface BoardConfig {
+  width: number;     // 工作區寬度 (px)
+  height: number;    // 工作區高度 (px)
+  gridSize: number;  // 格線間距 (px)
+  showGrid: boolean;
+}
+
+export interface CardPile {
+  id: string;
+  name: string;
+  cards: string[];   // tokenId 列表（可重複）
 }
 
 export interface GameModule {
@@ -56,6 +78,15 @@ export interface GameModule {
   actions: Action[];
   rules: Rule[];
   turn: Turn;
+  board?: BoardLayout;
+  boardConfig?: BoardConfig;
+  piles?: CardPile[];
+}
+
+export interface TurnRecord {
+  playerName: string;
+  turnNumber: number;
+  actionsLog: string[];
 }
 
 export interface GameState {
@@ -65,6 +96,14 @@ export interface GameState {
   eventLog: string[];
   gameOver: boolean;
   winner?: Player;
+  losers: string[];
+  actionsUsedThisTurn: number;
+  turnCounts: Record<string, number>;  // playerId → 已完成的回合數
+  phase: 'setup' | 'playing' | 'ended';
+  turnHistory: TurnRecord[];
+  currentTurnActions: string[];
+  lastDiceResult?: { sides: number; result: number };
+  pilesState: Record<string, string[]>;  // pileId → 剩餘牌堆
 }
 
 export interface DragItem {
@@ -79,9 +118,13 @@ export interface Position {
 }
 
 export interface BoardItem {
+  instanceId: string;
   id: string;
   type: 'token' | 'card' | 'dice';
   position: Position;
   properties: Record<string, any>;
 }
 
+export interface BoardLayout {
+  items: BoardItem[];
+}

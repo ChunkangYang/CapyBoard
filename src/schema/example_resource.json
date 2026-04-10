@@ -1,0 +1,30 @@
+{
+  "gameName": { "zh": "淘金熱", "en": "Gold Rush" },
+  "players": [
+    { "id": "miner1", "name": "礦工甲", "tokens": [], "score": 0 },
+    { "id": "miner2", "name": "礦工乙", "tokens": [], "score": 0 },
+    { "id": "miner3", "name": "礦工丙", "tokens": [], "score": 0 }
+  ],
+  "tokens": [
+    { "id": "ore",  "name": "礦石", "type": "resource" },
+    { "id": "gold", "name": "黃金", "type": "resource" },
+    { "id": "gem",  "name": "寶石", "type": "resource" }
+  ],
+  "actions": [
+    { "id": "mine",       "name": "採礦",   "type": "gainToken",  "params": { "tokenId": "ore",  "count": 2 } },
+    { "id": "smelt",      "name": "冶煉",   "type": "tradeToken", "params": { "fromTokenId": "ore",  "fromCount": 3, "toTokenId": "gold", "toCount": 1 } },
+    { "id": "craft_gem",  "name": "打磨寶石", "type": "tradeToken", "params": { "fromTokenId": "gold", "fromCount": 2, "toTokenId": "gem",  "toCount": 1 } }
+  ],
+  "rules": [
+    {
+      "id": "win_gem",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "gem", "count": 3 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" },
+      "priority": 0
+    }
+  ],
+  "turn": { "currentPlayerId": "miner1", "actionsPerTurn": 2 },
+  "board": { "items": [] },
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+}

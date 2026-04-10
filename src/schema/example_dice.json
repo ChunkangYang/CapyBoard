@@ -1,0 +1,51 @@
+{
+  "gameName": { "zh": "骰子冒險", "en": "Dice Adventure" },
+  "players": [
+    { "id": "p1", "name": "冒險者甲", "tokens": [], "score": 0 },
+    { "id": "p2", "name": "冒險者乙", "tokens": [], "score": 0 }
+  ],
+  "tokens": [
+    { "id": "coin",    "name": "金幣",   "type": "resource" },
+    { "id": "trophy",  "name": "獎盃",   "type": "resource" },
+    { "id": "star",    "name": "★ 星星", "type": "resource" }
+  ],
+  "actions": [
+    { "id": "explore", "name": "探索（擲骰）", "type": "rollDice",   "params": { "sides": 6 } },
+    { "id": "collect", "name": "收集金幣",    "type": "gainToken",  "params": { "tokenId": "coin",   "count": 1 } },
+    { "id": "trade",   "name": "換取獎盃",    "type": "tradeToken", "params": { "fromTokenId": "coin", "fromCount": 3, "toTokenId": "trophy", "toCount": 1 } },
+    { "id": "shine",   "name": "獲得星星",    "type": "tradeToken", "params": { "fromTokenId": "trophy", "fromCount": 2, "toTokenId": "star", "toCount": 1 } }
+  ],
+  "rules": [
+    {
+      "id": "score_on_turn",
+      "trigger": "onTurnEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "coin", "count": 1 },
+      "action": { "type": "addScore", "playerId": "{currentPlayer}", "amount": 1 },
+      "priority": 0
+    },
+    {
+      "id": "bonus_trophy",
+      "trigger": "onTurnEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "trophy", "count": 1 },
+      "action": { "type": "addScore", "playerId": "{currentPlayer}", "amount": 2 },
+      "priority": 1
+    },
+    {
+      "id": "win_star",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "star", "count": 3 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" },
+      "priority": 10
+    },
+    {
+      "id": "win_score",
+      "trigger": "onTurnEnd",
+      "condition": { "type": "hasScore", "playerId": "{currentPlayer}", "operator": ">=", "amount": 15 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" },
+      "priority": 5
+    }
+  ],
+  "turn": { "currentPlayerId": "p1", "actionsPerTurn": 2 },
+  "board": { "items": [] },
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+}
