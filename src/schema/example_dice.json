@@ -5,15 +5,20 @@
     { "id": "p2", "name": "冒險者乙", "tokens": [], "score": 0 }
   ],
   "tokens": [
-    { "id": "coin",    "name": "金幣",   "type": "resource" },
-    { "id": "trophy",  "name": "獎盃",   "type": "resource" },
-    { "id": "star",    "name": "★ 星星", "type": "resource" }
+    { "id": "coin",    "name": "金幣",   "type": "resource", "icon": "🪙" },
+    { "id": "trophy",  "name": "獎盃",   "type": "resource", "icon": "🏆" },
+    { "id": "star",    "name": "★星星",  "type": "resource", "icon": "⭐" }
+  ],
+  "variables": [
+    { "id": "stamina", "name": "體力", "defaultValue": 10 }
   ],
   "actions": [
-    { "id": "explore", "name": "探索（擲骰）", "type": "rollDice",   "params": { "sides": 6 } },
-    { "id": "collect", "name": "收集金幣",    "type": "gainToken",  "params": { "tokenId": "coin",   "count": 1 } },
-    { "id": "trade",   "name": "換取獎盃",    "type": "tradeToken", "params": { "fromTokenId": "coin", "fromCount": 3, "toTokenId": "trophy", "toCount": 1 } },
-    { "id": "shine",   "name": "獲得星星",    "type": "tradeToken", "params": { "fromTokenId": "trophy", "fromCount": 2, "toTokenId": "star", "toCount": 1 } }
+    { "id": "explore", "name": "探索（擲骰）",   "type": "rollDice",    "params": { "sides": 6 } },
+    { "id": "collect", "name": "收集金幣",       "type": "gainToken",   "params": { "tokenId": "coin",   "count": 1 } },
+    { "id": "rest",    "name": "休息（恢復體力）","type": "addVariable", "params": { "variableId": "stamina", "amount": 3 } },
+    { "id": "sprint",  "name": "衝刺（消耗體力）","type": "addVariable", "params": { "variableId": "stamina", "amount": -2 } },
+    { "id": "trade",   "name": "換取獎盃",       "type": "tradeToken",  "params": { "fromTokenId": "coin", "fromCount": 3, "toTokenId": "trophy", "toCount": 1 } },
+    { "id": "shine",   "name": "獲得星星",       "type": "tradeToken",  "params": { "fromTokenId": "trophy", "fromCount": 2, "toTokenId": "star", "toCount": 1 } }
   ],
   "rules": [
     {
@@ -29,6 +34,13 @@
       "condition": { "type": "hasTokenCount", "tokenId": "trophy", "count": 1 },
       "action": { "type": "addScore", "playerId": "{currentPlayer}", "amount": 2 },
       "priority": 1
+    },
+    {
+      "id": "stamina_penalty",
+      "trigger": "onTurnEnd",
+      "condition": { "type": "hasVariable", "variableId": "stamina", "operator": "<=", "amount": 0 },
+      "action": { "type": "loseGame", "playerId": "{currentPlayer}" },
+      "priority": 8
     },
     {
       "id": "win_star",
@@ -47,5 +59,6 @@
   ],
   "turn": { "currentPlayerId": "p1", "actionsPerTurn": 2 },
   "board": { "items": [] },
-  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true, "backgroundColor": "#f0fdf4" },
+  "theme": { "primaryColor": "#16a34a" }
 }

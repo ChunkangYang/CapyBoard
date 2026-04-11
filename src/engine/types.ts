@@ -14,16 +14,19 @@ export interface Token {
   id: string;
   name: string;
   type: 'resource' | 'card' | 'dice' | 'custom';
+  icon?: string;  // emoji 或文字圖示，例如 '⚔️' '🪙'
   properties?: Record<string, any>;
 }
 
 export type ActionType =
-  | 'gainToken'   // 玩家獲得 Token
-  | 'spendToken'  // 玩家消耗 Token
-  | 'tradeToken'  // 消耗 A 換得 B
-  | 'rollDice'    // 擲骰子
-  | 'drawCard'    // 抽牌
-  | 'moveToken';  // 移動 Token（棋盤）
+  | 'gainToken'    // 玩家獲得 Token
+  | 'spendToken'   // 玩家消耗 Token
+  | 'tradeToken'   // 消耗 A 換得 B
+  | 'rollDice'     // 擲骰子
+  | 'drawCard'     // 抽牌
+  | 'moveToken'    // 移動 Token（棋盤）
+  | 'setVariable'  // 設定遊戲變數
+  | 'addVariable'; // 增加遊戲變數
 
 export interface Action {
   id: string;
@@ -58,11 +61,23 @@ export interface Turn {
   actionsPerTurn: number;
 }
 
+export interface GameVariable {
+  id: string;
+  name: string;
+  defaultValue: number;
+}
+
+export interface BoardTheme {
+  primaryColor?: string;  // hex color, e.g. '#3b82f6'
+  boardBackground?: string;  // hex color or css color
+}
+
 export interface BoardConfig {
   width: number;     // 工作區寬度 (px)
   height: number;    // 工作區高度 (px)
   gridSize: number;  // 格線間距 (px)
   showGrid: boolean;
+  backgroundColor?: string;  // 棋盤背景色
 }
 
 export interface CardPile {
@@ -81,6 +96,8 @@ export interface GameModule {
   board?: BoardLayout;
   boardConfig?: BoardConfig;
   piles?: CardPile[];
+  variables?: GameVariable[];
+  theme?: BoardTheme;
 }
 
 export interface TurnRecord {
@@ -104,6 +121,7 @@ export interface GameState {
   currentTurnActions: string[];
   lastDiceResult?: { sides: number; result: number };
   pilesState: Record<string, string[]>;  // pileId → 剩餘牌堆
+  variablesState: Record<string, number>;  // variableId → 當前值
 }
 
 export interface DragItem {

@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { GameModule, GameState } from '../engine/types';
+import { GameModule, GameState, Player } from '../engine/types';
 import { RuleEngine } from '../engine/ruleEngine';
-import { RotateCcw, Play, SkipForward, ChevronDown, ChevronRight, Trophy, Swords } from 'lucide-react';
+import {
+  RotateCcw, Play, SkipForward, ChevronDown, ChevronRight,
+  Trophy, Swords, StepBack, PenLine, X,
+} from 'lucide-react';
 
 interface GameBoardProps {
   gameModule: GameModule;
@@ -191,6 +194,90 @@ const GameEndScreen: React.FC<{
   </div>
 );
 
+// ─── State Editor Modal ───────────────────────────────────────────────────────
+const StateEditorModal: React.FC<{
+  gameState: GameState;
+  onApply: (playerId: string, patch: { score: number; tokens: string[] }) => void;
+  onClose: () => void;
+}> = ({ gameState, onApply, onClose }) => {
+  const module = gameState.module;
+  const [edits, setEdits] = useState<Record<string, { score: number; tokenStr: string }>>(() => {
+    const init: Record<string, { score: number; tokenStr: string }> = {};
+    for (const p of module.players) {
+      init[p.id] = {
+        score: p.score,
+        tokenStr: p.tokens.join(', '),
+      };
+    }
+    return init;
+  });
+
+  const handleApply = () => {
+    for (const [pid, edit] of Object.entries(edits)) {
+      const rawTokens = edit.tokenStr
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      onApply(pid, { score: edit.score, tokens: rawTokens });
+    }
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-[480px] max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <span className="font-semibold text-gray-800">直接修改玩家狀態</span>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4 space-y-4">
+          {module.players.map(player => (
+            <div key={player.id} className="border rounded-lg p-3 space-y-2">
+              <div className="font-medium text-sm">{player.name}</div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 w-12">分數</label>
+                <input
+                  type="number"
+                  className="flex-1 p-1.5 border rounded text-sm"
+                  value={edits[player.id]?.score ?? 0}
+                  onChange={e => setEdits(prev => ({
+                    ...prev,
+                    [player.id]: { ...prev[player.id], score: parseInt(e.target.value) || 0 },
+                  }))}
+                />
+              </div>
+              <div className="flex items-start gap-2">
+                <label className="text-xs text-gray-500 w-12 pt-1.5">Token</label>
+                <div className="flex-1 space-y-1">
+                  <input
+                    type="text"
+                    className="w-full p-1.5 border rounded text-sm font-mono"
+                    placeholder="tokenId, tokenId, ..."
+                    value={edits[player.id]?.tokenStr ?? ''}
+                    onChange={e => setEdits(prev => ({
+                      ...prev,
+                      [player.id]: { ...prev[player.id], tokenStr: e.target.value },
+                    }))}
+                  />
+                  <div className="text-xs text-gray-400">
+                    可用 Token ID：{module.tokens.map(t => `${t.id}(${t.name})`).join('、') || '無'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 pb-4 flex gap-2 justify-end">
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button onClick={handleApply}>套用修改</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main GameBoard ───────────────────────────────────────────────────────────
 export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
   const engineRef = useRef<RuleEngine>(new RuleEngine(JSON.parse(JSON.stringify(gameModule))));
@@ -200,25 +287,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
   );
   const [showDice, setShowDice] = useState(false);
 
+  // ── State snapshots for rewind ──
+  const [snapshots, setSnapshots] = useState<GameState[]>([]);
+
+  const saveSnapshot = useCallback(() => {
+    const snap = JSON.parse(JSON.stringify(engineRef.current.getGameState())) as GameState;
+    setSnapshots(prev => [...prev.slice(-19), snap]); // 最多保留 20 步
+  }, []);
+
+  const handleRewind = () => {
+    if (snapshots.length === 0) return;
+    const prev = snapshots[snapshots.length - 1];
+    setSnapshots(s => s.slice(0, -1));
+    engineRef.current.loadState(prev);
+    setGameState({ ...engineRef.current.getGameState() });
+    setShowDice(false);
+  };
+
+  // ── State editor ──
+  const [showStateEditor, setShowStateEditor] = useState(false);
+
+  const handlePatchPlayer = (playerId: string, patch: { score: number; tokens: string[] }) => {
+    engineRef.current.patchPlayer(playerId, patch);
+    setGameState({ ...engineRef.current.getGameState() });
+  };
+
   const refresh = () => {
     const state = engineRef.current.getGameState();
     setGameState({ ...state });
-    // 若本次動作觸發了骰子結果，顯示動畫
     if (state.lastDiceResult) setShowDice(true);
   };
 
   const handleStart = () => {
+    saveSnapshot();
     engineRef.current.startGame();
     refresh();
   };
 
   const handleExecuteAction = () => {
     if (!selectedActionId) return;
+    saveSnapshot();
     engineRef.current.executeAction(selectedActionId);
     refresh();
   };
 
   const handleEndTurn = () => {
+    saveSnapshot();
     engineRef.current.endTurn();
     refresh();
   };
@@ -229,6 +343,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
     setGameState({ ...state });
     setSelectedActionId(gameModule.actions[0]?.id ?? '');
     setShowDice(false);
+    setSnapshots([]);
   };
 
   const currentPlayer = gameState.currentPlayer;
@@ -269,6 +384,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
         <DiceOverlay
           result={gameState.lastDiceResult}
           onClose={() => setShowDice(false)}
+        />
+      )}
+
+      {/* 狀態編輯 Modal */}
+      {showStateEditor && (
+        <StateEditorModal
+          gameState={gameState}
+          onApply={handlePatchPlayer}
+          onClose={() => setShowStateEditor(false)}
         />
       )}
 
@@ -313,6 +437,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
                           const token = gameState.module.tokens.find(t => t.id === tid);
                           return (
                             <span key={tid} className="px-1.5 py-0.5 bg-yellow-100 border border-yellow-200 rounded">
+                              {token?.icon && <span className="mr-0.5">{token.icon}</span>}
                               {token?.name ?? tid} ×{cnt}
                             </span>
                           );
@@ -335,6 +460,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* 遊戲變數 */}
+          {gameState.module.variables && gameState.module.variables.length > 0 && (
+            <Card className="mt-2">
+              <CardContent className="py-2 px-3">
+                <div className="text-xs font-medium text-gray-600 mb-1">遊戲變數</div>
+                {gameState.module.variables.map(v => (
+                  <div key={v.id} className="flex justify-between text-xs py-0.5">
+                    <span className="text-gray-600">{v.name}</span>
+                    <span className="font-mono font-medium text-gray-800">
+                      {gameState.variablesState[v.id] ?? v.defaultValue}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           )}
         </div>
 
@@ -383,7 +525,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
                     )}
                   </>
                 )}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={handleExecuteAction}
                     disabled={!selectedActionId || actionBlocked}
@@ -392,6 +534,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
                   </Button>
                   <Button variant="outline" onClick={handleEndTurn}>
                     <SkipForward className="w-4 h-4 mr-1" /> 結束回合
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleRewind}
+                    disabled={snapshots.length === 0}
+                    title={`倒退一步（還可倒退 ${snapshots.length} 步）`}
+                  >
+                    <StepBack className="w-4 h-4 mr-1" /> 倒退
+                    {snapshots.length > 0 && (
+                      <span className="ml-1 text-xs bg-gray-200 rounded px-1">{snapshots.length}</span>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowStateEditor(true)}
+                    title="直接修改玩家狀態（測試用）"
+                  >
+                    <PenLine className="w-4 h-4 mr-1" /> 修改狀態
                   </Button>
                   <Button variant="ghost" onClick={handleReset}>
                     <RotateCcw className="w-4 h-4 mr-1" /> 重置

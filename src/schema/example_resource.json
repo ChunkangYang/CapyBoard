@@ -6,25 +6,45 @@
     { "id": "miner3", "name": "礦工丙", "tokens": [], "score": 0 }
   ],
   "tokens": [
-    { "id": "ore",  "name": "礦石", "type": "resource" },
-    { "id": "gold", "name": "黃金", "type": "resource" },
-    { "id": "gem",  "name": "寶石", "type": "resource" }
+    { "id": "ore",  "name": "礦石", "type": "resource", "icon": "🪨" },
+    { "id": "gold", "name": "黃金", "type": "resource", "icon": "🥇" },
+    { "id": "gem",  "name": "寶石", "type": "resource", "icon": "💎" }
+  ],
+  "variables": [
+    { "id": "market_price", "name": "市場價格", "defaultValue": 1 }
   ],
   "actions": [
-    { "id": "mine",       "name": "採礦",   "type": "gainToken",  "params": { "tokenId": "ore",  "count": 2 } },
-    { "id": "smelt",      "name": "冶煉",   "type": "tradeToken", "params": { "fromTokenId": "ore",  "fromCount": 3, "toTokenId": "gold", "toCount": 1 } },
-    { "id": "craft_gem",  "name": "打磨寶石", "type": "tradeToken", "params": { "fromTokenId": "gold", "fromCount": 2, "toTokenId": "gem",  "toCount": 1 } }
+    { "id": "mine",       "name": "採礦",       "type": "gainToken",  "params": { "tokenId": "ore",  "count": 2 } },
+    { "id": "smelt",      "name": "冶煉",       "type": "tradeToken", "params": { "fromTokenId": "ore",  "fromCount": 3, "toTokenId": "gold", "toCount": 1 } },
+    { "id": "craft_gem",  "name": "打磨寶石",   "type": "tradeToken", "params": { "fromTokenId": "gold", "fromCount": 2, "toTokenId": "gem",  "toCount": 1 } },
+    { "id": "sell_gold",  "name": "出售黃金",   "type": "spendToken", "params": { "tokenId": "gold", "count": 1 } },
+    { "id": "price_up",   "name": "市場行情＋", "type": "addVariable","params": { "variableId": "market_price", "amount": 1 } }
   ],
   "rules": [
+    {
+      "id": "score_sell",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasVariable", "variableId": "market_price", "operator": ">=", "amount": 1 },
+      "action": { "type": "addScore", "playerId": "{currentPlayer}", "amount": 1 },
+      "priority": 0
+    },
     {
       "id": "win_gem",
       "trigger": "onActionEnd",
       "condition": { "type": "hasTokenCount", "tokenId": "gem", "count": 3 },
       "action": { "type": "winGame", "playerId": "{currentPlayer}" },
-      "priority": 0
+      "priority": 10
+    },
+    {
+      "id": "win_score",
+      "trigger": "onTurnEnd",
+      "condition": { "type": "hasScore", "playerId": "{currentPlayer}", "operator": ">=", "amount": 10 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" },
+      "priority": 5
     }
   ],
   "turn": { "currentPlayerId": "miner1", "actionsPerTurn": 2 },
   "board": { "items": [] },
-  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true, "backgroundColor": "#fef9c3" },
+  "theme": { "primaryColor": "#ca8a04" }
 }

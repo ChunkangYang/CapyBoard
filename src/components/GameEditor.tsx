@@ -2,10 +2,11 @@ import React, { useRef, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig } from '../engine/types';
+import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable } from '../engine/types';
 import { createDragItem, createBoardItem, calculateDropPosition, snapToGrid } from '../utils/dragDropHelpers';
 import { downloadGameModule } from '../utils/jsonLoader';
-import { Plus, Trash2, Save, Users, Grid, Zap, Layout } from 'lucide-react';
+import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable } from 'lucide-react';
+import { Tooltip } from './ui/tooltip';
 
 interface GameEditorProps {
   gameModule: GameModule;
@@ -14,12 +15,14 @@ interface GameEditorProps {
 
 // ─── Action type metadata ─────────────────────────────────────────────────────
 const ACTION_TYPE_LABELS: Record<ActionType, string> = {
-  gainToken:  '獲得 Token',
-  spendToken: '消耗 Token',
-  tradeToken: '交易 Token',
-  rollDice:   '擲骰子',
-  drawCard:   '抽牌',
-  moveToken:  '移動 Token',
+  gainToken:    '獲得 Token',
+  spendToken:   '消耗 Token',
+  tradeToken:   '交易 Token',
+  rollDice:     '擲骰子',
+  drawCard:     '抽牌',
+  moveToken:    '移動 Token',
+  setVariable:  '設定變數',
+  addVariable:  '增加變數',
 };
 
 const defaultParams = (type: ActionType, tokens: Token[]): Record<string, any> => {
@@ -31,6 +34,8 @@ const defaultParams = (type: ActionType, tokens: Token[]): Record<string, any> =
     case 'rollDice':   return { sides: 6 };
     case 'drawCard':   return { tokenId: firstId };
     case 'moveToken':  return { tokenId: firstId };
+    case 'setVariable': return { variableId: '', value: 0 };
+    case 'addVariable': return { variableId: '', amount: 1 };
   }
 };
 
@@ -61,7 +66,10 @@ const DraggableToken: React.FC<{
       } ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-yellow-50 hover:bg-yellow-100 border-gray-200'}`}
       onClick={(e) => { e.stopPropagation(); onSelect(token); }}
     >
-      <div className="font-medium truncate">{token.name}</div>
+      <div className="font-medium truncate flex items-center gap-1">
+        {token.icon && <span>{token.icon}</span>}
+        {token.name}
+      </div>
       <div className="text-xs text-gray-500">{token.type}</div>
     </div>
   );
@@ -97,13 +105,15 @@ const DroppableWorkspace: React.FC<{
     containerRef.current = node;
   };
 
+  const bgColor = boardConfig.backgroundColor ?? '#ffffff';
   const gridStyle: React.CSSProperties = boardConfig.showGrid ? {
     backgroundImage: `
       linear-gradient(to right, #e5e7eb 1px, transparent 1px),
       linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
     `,
     backgroundSize: `${boardConfig.gridSize}px ${boardConfig.gridSize}px`,
-  } : {};
+    backgroundColor: bgColor,
+  } : { backgroundColor: bgColor };
 
   return (
     <div
@@ -115,6 +125,7 @@ const DroppableWorkspace: React.FC<{
         width: boardConfig.width,
         height: boardConfig.height,
         ...gridStyle,
+        borderColor: isOver ? '#3b82f6' : '#d1d5db',
       }}
     >
       {boardItems.length === 0 && (
@@ -132,7 +143,10 @@ const DroppableWorkspace: React.FC<{
             style={{ left: item.position.x, top: item.position.y, minWidth: '64px' }}
             onClick={() => onItemClick(item)}
           >
-            <div className="text-sm font-medium text-center">{token?.name ?? item.id}</div>
+            <div className="text-sm font-medium text-center">
+              {token?.icon && <span className="mr-1">{token.icon}</span>}
+              {token?.name ?? item.id}
+            </div>
             <button
               className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center leading-none"
               onClick={(e) => { e.stopPropagation(); onItemRemove(item.instanceId); }}
@@ -148,8 +162,9 @@ const DroppableWorkspace: React.FC<{
 const ActionParamsEditor: React.FC<{
   action: Action;
   tokens: Token[];
+  variables?: GameVariable[];
   onChange: (params: Record<string, any>) => void;
-}> = ({ action, tokens, onChange }) => {
+}> = ({ action, tokens, variables = [], onChange }) => {
   const p = action.params;
   const set = (key: string, value: any) => onChange({ ...p, [key]: value });
 
@@ -200,7 +215,119 @@ const ActionParamsEditor: React.FC<{
       return (
         <div><label className="block text-xs font-medium mb-0.5">Token</label>{tokenSelect('tokenId')}</div>
       );
+    case 'setVariable':
+      return (
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs font-medium mb-0.5">變數</label>
+            <select
+              className="w-full p-1.5 border rounded text-sm"
+              value={p.variableId ?? ''}
+              onChange={e => set('variableId', e.target.value)}
+            >
+              <option value="">-- 選擇變數 --</option>
+              {variables.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </div>
+          <div><label className="block text-xs font-medium mb-0.5">設為值</label>{numInput('value', 0)}</div>
+        </div>
+      );
+    case 'addVariable':
+      return (
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs font-medium mb-0.5">變數</label>
+            <select
+              className="w-full p-1.5 border rounded text-sm"
+              value={p.variableId ?? ''}
+              onChange={e => set('variableId', e.target.value)}
+            >
+              <option value="">-- 選擇變數 --</option>
+              {variables.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-0.5">增加量（可為負數）</label>
+            <input
+              type="number"
+              className="w-full p-1.5 border rounded text-sm"
+              value={p.amount ?? 1}
+              onChange={e => set('amount', parseInt(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+      );
+    default:
+      return null;
   }
+};
+
+// ─── Variables Panel ─────────────────────────────────────────────────────────
+const VariablesPanel: React.FC<{
+  gameModule: GameModule;
+  onChange: (module: GameModule) => void;
+}> = ({ gameModule, onChange }) => {
+  const variables = gameModule.variables ?? [];
+
+  const addVariable = () => {
+    const newVar: GameVariable = {
+      id: `var_${Date.now()}`,
+      name: '新變數',
+      defaultValue: 0,
+    };
+    onChange({ ...gameModule, variables: [...variables, newVar] });
+  };
+
+  const updateVariable = (updated: GameVariable) => {
+    onChange({ ...gameModule, variables: variables.map(v => v.id === updated.id ? updated : v) });
+  };
+
+  const removeVariable = (id: string) => {
+    onChange({ ...gameModule, variables: variables.filter(v => v.id !== id) });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-600">遊戲變數（{variables.length}）</span>
+        <Tooltip content="新增自訂遊戲變數（血量、魔力等數值）" side="left">
+          <Button size="sm" onClick={addVariable}><Plus className="w-3.5 h-3.5" /></Button>
+        </Tooltip>
+      </div>
+      {variables.length === 0 && (
+        <div className="text-xs text-gray-400 text-center py-4">
+          點擊 + 新增遊戲變數<br />
+          <span className="text-gray-300">例：血量、魔力、回合計數</span>
+        </div>
+      )}
+      {variables.map(v => (
+        <div key={v.id} className="border rounded-lg p-3 space-y-2 bg-white">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              className="flex-1 p-1.5 border rounded text-sm font-medium"
+              value={v.name}
+              placeholder="變數名稱"
+              onChange={e => updateVariable({ ...v, name: e.target.value })}
+            />
+            <Button variant="destructive" size="sm" onClick={() => removeVariable(v.id)}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">預設值</span>
+            <input
+              type="number"
+              className="w-20 p-1 border rounded text-xs text-center"
+              value={v.defaultValue}
+              onChange={e => updateVariable({ ...v, defaultValue: parseInt(e.target.value) || 0 })}
+            />
+            <span className="text-xs text-gray-400">ID: {v.id}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 // ─── Board Config Panel ──────────────────────────────────────────────────────
@@ -262,6 +389,28 @@ const BoardConfigPanel: React.FC<{
             />
             顯示格線
           </label>
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-medium mb-0.5">棋盤背景色</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              className="w-8 h-8 border rounded cursor-pointer p-0.5"
+              value={config.backgroundColor ?? '#ffffff'}
+              onChange={e => set('backgroundColor', e.target.value)}
+            />
+            <input
+              type="text"
+              className="flex-1 p-1.5 border rounded text-sm font-mono"
+              value={config.backgroundColor ?? '#ffffff'}
+              onChange={e => set('backgroundColor', e.target.value)}
+            />
+            <button
+              className="text-xs text-gray-400 hover:text-gray-600 px-1"
+              onClick={() => set('backgroundColor', '#ffffff')}
+              title="重設為白色"
+            >重設</button>
+          </div>
         </div>
       </div>
     </div>
@@ -387,7 +536,7 @@ const PlayersPanel: React.FC<{
 
 // ─── Main GameEditor ──────────────────────────────────────────────────────────
 export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModuleChange }) => {
-  const [leftTab, setLeftTab] = useState<'tokens' | 'actions' | 'players'>('tokens');
+  const [leftTab, setLeftTab] = useState<'tokens' | 'actions' | 'players' | 'variables'>('tokens');
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [showBoardConfig, setShowBoardConfig] = useState(false);
@@ -469,9 +618,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   const isActionSelected = selectedAction && leftTab === 'actions';
 
   const LEFT_TABS = [
-    { id: 'tokens' as const, label: '元件', icon: <Layout className="w-3.5 h-3.5" /> },
-    { id: 'actions' as const, label: '動作', icon: <Zap className="w-3.5 h-3.5" /> },
-    { id: 'players' as const, label: '玩家', icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'tokens'    as const, label: '元件', icon: <Layout className="w-3.5 h-3.5" /> },
+    { id: 'actions'   as const, label: '動作', icon: <Zap className="w-3.5 h-3.5" /> },
+    { id: 'players'   as const, label: '玩家', icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'variables' as const, label: '變數', icon: <Variable className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -480,24 +630,35 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
       <div className="w-64 bg-white border-r flex flex-col">
         {/* tabs */}
         <div className="flex border-b">
-          {LEFT_TABS.map(tab => (
-            <button
-              key={tab.id}
-              className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
-                leftTab === tab.id ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setLeftTab(tab.id)}
-            >
-              {tab.icon}{tab.label}
-            </button>
-          ))}
+          {LEFT_TABS.map(tab => {
+            const tips: Record<string, string> = {
+              tokens:    '管理遊戲元件（Token）：資源、卡牌、棋子',
+              actions:   '設定玩家每回合可執行的動作',
+              players:   '新增/刪除玩家、設定初始資源與回合行動次數',
+              variables: '自訂遊戲變數（血量、魔力等）',
+            };
+            return (
+              <Tooltip key={tab.id} content={tips[tab.id]} side="bottom">
+                <button
+                  className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
+                    leftTab === tab.id ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setLeftTab(tab.id)}
+                >
+                  {tab.icon}{tab.label}
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
 
         {leftTab === 'tokens' && (
           <div className="flex-1 overflow-y-auto p-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-600">元件列表</span>
-              <Button size="sm" onClick={addToken}><Plus className="w-3.5 h-3.5" /></Button>
+              <Tooltip content="新增 Token（元件）" side="left">
+                <Button size="sm" onClick={addToken}><Plus className="w-3.5 h-3.5" /></Button>
+              </Tooltip>
             </div>
             <div className="space-y-1.5">
               {gameModule.tokens.map(token => (
@@ -523,7 +684,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
           <div className="flex-1 overflow-y-auto p-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-600">動作列表</span>
-              <Button size="sm" onClick={addAction}><Plus className="w-3.5 h-3.5" /></Button>
+              <Tooltip content="新增玩家動作" side="left">
+                <Button size="sm" onClick={addAction}><Plus className="w-3.5 h-3.5" /></Button>
+              </Tooltip>
             </div>
             <div className="space-y-1.5">
               {gameModule.actions.map(action => (
@@ -557,6 +720,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             <PlayersPanel gameModule={gameModule} onChange={onGameModuleChange} />
           </div>
         )}
+
+        {leftTab === 'variables' && (
+          <div className="flex-1 overflow-y-auto p-3">
+            <VariablesPanel gameModule={gameModule} onChange={onGameModuleChange} />
+          </div>
+        )}
       </div>
 
       {/* ── 中央工作區 ── */}
@@ -571,6 +740,21 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             />
           </div>
           <div className="flex items-center gap-2">
+            {/* 主題色 */}
+            <Tooltip content="遊戲主題色彩" side="bottom">
+              <div className="flex items-center gap-1 border rounded px-2 py-1 bg-white text-xs text-gray-600">
+                <span>主題色</span>
+                <input
+                  type="color"
+                  className="w-6 h-6 border-0 rounded cursor-pointer p-0"
+                  value={gameModule.theme?.primaryColor ?? '#3b82f6'}
+                  onChange={e => onGameModuleChange({
+                    ...gameModule,
+                    theme: { ...(gameModule.theme ?? {}), primaryColor: e.target.value },
+                  })}
+                />
+              </div>
+            </Tooltip>
             <Button
               variant={showBoardConfig ? 'default' : 'outline'}
               size="sm"
@@ -651,6 +835,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
               <ActionParamsEditor
                 action={selectedAction}
                 tokens={gameModule.tokens}
+                variables={gameModule.variables}
                 onChange={params => updateAction({ ...selectedAction, params })}
               />
             </div>
@@ -664,6 +849,16 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                 className="w-full p-1.5 border rounded text-sm"
                 value={selectedToken.name}
                 onChange={e => updateToken({ ...selectedToken, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-0.5">圖示（Emoji 或文字）</label>
+              <input
+                type="text"
+                className="w-full p-1.5 border rounded text-sm"
+                placeholder="例：🪙 ⚔️ ❤️"
+                value={selectedToken.icon ?? ''}
+                onChange={e => updateToken({ ...selectedToken, icon: e.target.value })}
               />
             </div>
             <div>

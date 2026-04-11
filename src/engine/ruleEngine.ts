@@ -1,4 +1,4 @@
-import { GameModule, GameState, Player, Condition, GameAction, TurnRecord } from './types';
+import { GameModule, GameState, Player, Condition, GameAction, TurnRecord, GameVariable } from './types';
 
 export class RuleEngine {
   private gameState: GameState;
@@ -8,6 +8,11 @@ export class RuleEngine {
     const pilesState: Record<string, string[]> = {};
     for (const pile of gameModule.piles ?? []) {
       pilesState[pile.id] = [...pile.cards];
+    }
+
+    const variablesState: Record<string, number> = {};
+    for (const v of gameModule.variables ?? []) {
+      variablesState[v.id] = v.defaultValue;
     }
 
     this.gameState = {
@@ -23,6 +28,7 @@ export class RuleEngine {
       turnHistory: [],
       currentTurnActions: [],
       pilesState,
+      variablesState,
     };
   }
 
@@ -135,6 +141,21 @@ export class RuleEngine {
         this.addEventLog(`移動 ${token?.name ?? tokenId}（棋盤功能將於後續版本實作）`);
         break;
       }
+      case 'setVariable': {
+        const { variableId, value = 0 } = params;
+        const v = this.gameState.module.variables?.find(v => v.id === variableId);
+        this.gameState.variablesState[variableId] = value;
+        this.addEventLog(`設定變數「${v?.name ?? variableId}」= ${value}`);
+        break;
+      }
+      case 'addVariable': {
+        const { variableId, amount = 1 } = params;
+        const v = this.gameState.module.variables?.find(v => v.id === variableId);
+        const prev = this.gameState.variablesState[variableId] ?? 0;
+        this.gameState.variablesState[variableId] = prev + amount;
+        this.addEventLog(`變數「${v?.name ?? variableId}」${amount >= 0 ? '+' : ''}${amount}（現在：${prev + amount}）`);
+        break;
+      }
       default:
         this.addEventLog(`未知動作類型：${(action as any).type}`);
     }
@@ -192,6 +213,26 @@ export class RuleEngine {
 
   private evaluateCondition(condition: Condition): boolean {
     switch (condition.type) {
+      case 'and': {
+        const conditions: Condition[] = condition.conditions ?? [];
+        return conditions.every(c => this.evaluateCondition(c));
+      }
+      case 'or': {
+        const conditions: Condition[] = condition.conditions ?? [];
+        return conditions.some(c => this.evaluateCondition(c));
+      }
+      case 'hasVariable': {
+        const { variableId, amount = 0, operator = '>=' } = condition;
+        const val = this.gameState.variablesState[variableId] ?? 0;
+        switch (operator) {
+          case '>=':  return val >= amount;
+          case '>':   return val >  amount;
+          case '<=':  return val <= amount;
+          case '<':   return val <  amount;
+          case '===': return val === amount;
+          default:    return false;
+        }
+      }
       case 'hasTokenCount': {
         const count = this.gameState.currentPlayer.tokens.filter(t => t === condition.tokenId).length;
         return count >= (condition.count ?? 1);
@@ -240,6 +281,9 @@ export class RuleEngine {
         return false;
     }
   }
+
+  private triggerChainDepth = 0;
+  private readonly MAX_CHAIN_DEPTH = 5;
 
   private executeGameAction(action: GameAction): void {
     switch (action.type) {
@@ -293,6 +337,39 @@ export class RuleEngine {
         }
         break;
       }
+      case 'setVariable': {
+        const v = this.gameState.module.variables?.find(v => v.id === action.variableId);
+        const val = action.value ?? 0;
+        this.gameState.variablesState[action.variableId!] = val;
+        this.addEventLog(`設定變數「${v?.name ?? action.variableId}」= ${val}`);
+        break;
+      }
+      case 'addVariable': {
+        const v = this.gameState.module.variables?.find(v => v.id === action.variableId);
+        const prev = this.gameState.variablesState[action.variableId!] ?? 0;
+        const amt = action.amount ?? 1;
+        this.gameState.variablesState[action.variableId!] = prev + amt;
+        this.addEventLog(`變數「${v?.name ?? action.variableId}」${amt >= 0 ? '+' : ''}${amt}（現在：${prev + amt}）`);
+        break;
+      }
+      case 'triggerRule': {
+        if (this.triggerChainDepth >= this.MAX_CHAIN_DEPTH) {
+          this.addEventLog('警告：觸發鏈深度超過上限，已停止');
+          break;
+        }
+        const rule = this.gameState.module.rules.find(r => r.id === action.ruleId);
+        if (!rule) {
+          this.addEventLog(`觸發鏈：找不到規則 ${action.ruleId}`);
+          break;
+        }
+        this.addEventLog(`觸發鏈：執行規則「${rule.id}」`);
+        this.triggerChainDepth++;
+        if (this.evaluateCondition(rule.condition)) {
+          this.executeGameAction(rule.action);
+        }
+        this.triggerChainDepth--;
+        break;
+      }
       default:
         this.addEventLog(`執行規則動作：${action.type}`);
     }
@@ -324,6 +401,10 @@ export class RuleEngine {
     for (const pile of module.piles ?? []) {
       pilesState[pile.id] = [...pile.cards];
     }
+    const variablesState: Record<string, number> = {};
+    for (const v of module.variables ?? []) {
+      variablesState[v.id] = v.defaultValue;
+    }
     this.gameState = {
       module,
       currentPlayer: module.players.find((p: Player) => p.id === module.turn.currentPlayerId)!,
@@ -337,7 +418,26 @@ export class RuleEngine {
       turnHistory: [],
       currentTurnActions: [],
       pilesState,
+      variablesState,
     };
     this.addEventLog('遊戲重新開始');
+  }
+
+  /** 載入快照（用於 rewind） */
+  public loadState(snapshot: GameState): void {
+    this.gameState = JSON.parse(JSON.stringify(snapshot));
+  }
+
+  /** 直接修改玩家狀態（測試用） */
+  public patchPlayer(playerId: string, patch: { score?: number; tokens?: string[] }): void {
+    const player = this.gameState.module.players.find(p => p.id === playerId);
+    if (!player) return;
+    if (patch.score !== undefined) player.score = patch.score;
+    if (patch.tokens !== undefined) player.tokens = [...patch.tokens];
+    // 同步 currentPlayer 參照
+    if (this.gameState.currentPlayer.id === playerId) {
+      this.gameState.currentPlayer = player;
+    }
+    this.addEventLog(`（測試）修改玩家「${player.name}」狀態`);
   }
 }
