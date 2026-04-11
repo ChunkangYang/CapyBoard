@@ -10,20 +10,35 @@ interface RuleEditorProps {
   onGameModuleChange: (module: GameModule) => void;
 }
 
-const TRIGGER_OPTIONS: { value: Rule['trigger']; label: string }[] = [
+const TRIGGER_OPTIONS: { value: Rule['trigger']; label: string; hint?: string }[] = [
   { value: 'onActionEnd',    label: '動作結束後' },
   { value: 'onTurnEnd',      label: '回合結束後' },
   { value: 'onObjectChange', label: '物件變更時' },
+  { value: 'onTokenLand',    label: 'Token 落地後', hint: '移動 Token 落到格子後觸發（配合格子序列）' },
 ];
 
 const CONDITION_TYPE_OPTIONS = [
-  { value: 'hasTokenCount',   label: '擁有 Token 數量' },
-  { value: 'hasScore',        label: '玩家分數' },
-  { value: 'playerTurnCount', label: '玩家回合數' },
-  { value: 'tokenAtPosition', label: 'Token 在棋盤位置' },
-  { value: 'hasVariable',     label: '遊戲變數' },
-  { value: 'and',             label: 'AND（所有條件成立）' },
-  { value: 'or',              label: 'OR（任一條件成立）' },
+  { value: 'hasTokenCount',    label: '擁有 Token 數量' },
+  { value: 'hasScore',         label: '玩家分數' },
+  { value: 'playerTurnCount',  label: '玩家回合數' },
+  { value: 'tokenAtPosition',  label: 'Token 在棋盤座標（XY）' },
+  { value: 'tokenAtCellIndex', label: 'Token 在第 N 格（序列）' },
+  { value: 'tokenOnCellType',  label: 'Token 在某類型格子' },
+  { value: 'hasVariable',      label: '遊戲變數' },
+  { value: 'and',              label: 'AND（所有條件成立）' },
+  { value: 'or',               label: 'OR（任一條件成立）' },
+];
+
+const CELL_TYPE_OPTIONS = [
+  { value: 'empty',         label: '空白格' },
+  { value: 'start',         label: '起點' },
+  { value: 'end',           label: '終點' },
+  { value: 'bonus_score',   label: '加分格' },
+  { value: 'penalty_score', label: '扣分格' },
+  { value: 'bonus_token',   label: '獲得 Token' },
+  { value: 'penalty_token', label: '失去 Token' },
+  { value: 'draw_card',     label: '抽牌格' },
+  { value: 'custom',        label: '自訂' },
 ];
 
 const COMPARE_OPTIONS = [
@@ -72,6 +87,10 @@ const resetCondition = (type: string, gameModule: GameModule): Condition => {
       return { type, playerId: '{currentPlayer}', operator: '>=', count: 3 };
     case 'tokenAtPosition':
       return { type, tokenId: gameModule.tokens[0]?.id ?? '', gridX: 0, gridY: 0 };
+    case 'tokenAtCellIndex':
+      return { type, tokenId: gameModule.tokens[0]?.id ?? '', cellIndex: 0 };
+    case 'tokenOnCellType':
+      return { type, tokenId: gameModule.tokens[0]?.id ?? '', cellType: 'end' };
     case 'hasVariable':
       return { type, variableId: gameModule.variables?.[0]?.id ?? '', operator: '>=', amount: 1 };
     case 'and':
@@ -181,6 +200,10 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ gameModule, onGameModule
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
+                    {(() => {
+                      const hint = TRIGGER_OPTIONS.find(t => t.value === selectedRule.trigger)?.hint;
+                      return hint ? <div className="text-xs text-blue-500 mt-1">{hint}</div> : null;
+                    })()}
                   </div>
                   <div className="w-24">
                     <label className="block text-sm font-medium mb-1">優先序</label>
@@ -415,6 +438,81 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({ gameModule, onGameModule
                     </div>
                     <div className="text-xs text-gray-400">
                       格子座標從 (0,0) 開始，對應棋盤格線位置
+                    </div>
+                  </>
+                )}
+
+                {selectedRule.condition.type === 'tokenAtCellIndex' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Token</label>
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={selectedRule.condition.tokenId ?? ''}
+                        onChange={e => updateRule({ ...selectedRule, condition: { ...selectedRule.condition, tokenId: e.target.value } })}
+                      >
+                        <option value="">-- 選擇 Token --</option>
+                        {gameModule.tokens.map(t => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.id})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">格子序號（index）</label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          min={0}
+                          className="w-full p-2 border rounded"
+                          value={selectedRule.condition.cellIndex ?? 0}
+                          onChange={e => updateRule({ ...selectedRule, condition: { ...selectedRule.condition, cellIndex: parseInt(e.target.value) || 0 } })}
+                        />
+                        {(() => {
+                          const cells = gameModule.boardConfig?.cells ?? [];
+                          const cell = cells[selectedRule.condition.cellIndex ?? 0];
+                          return cell ? (
+                            <span className="text-xs text-blue-600 shrink-0 whitespace-nowrap">「{cell.name}」</span>
+                          ) : null;
+                        })()}
+                      </div>
+                      {(gameModule.boardConfig?.cells?.length ?? 0) > 0 && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          目前共 {gameModule.boardConfig!.cells!.length} 格（0 ~ {gameModule.boardConfig!.cells!.length - 1}）
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {selectedRule.condition.type === 'tokenOnCellType' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Token</label>
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={selectedRule.condition.tokenId ?? ''}
+                        onChange={e => updateRule({ ...selectedRule, condition: { ...selectedRule.condition, tokenId: e.target.value } })}
+                      >
+                        <option value="">-- 選擇 Token --</option>
+                        {gameModule.tokens.map(t => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.id})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">格子類型</label>
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={selectedRule.condition.cellType ?? 'end'}
+                        onChange={e => updateRule({ ...selectedRule, condition: { ...selectedRule.condition, cellType: e.target.value } })}
+                      >
+                        {CELL_TYPE_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="text-xs text-blue-500 bg-blue-50 border border-blue-100 rounded p-2">
+                      通常搭配觸發時機「Token 落地後」（onTokenLand）使用
                     </div>
                   </>
                 )}
