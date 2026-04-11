@@ -2,10 +2,10 @@ import React, { useRef, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable } from '../engine/types';
+import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable, BoardCell, CellTemplateType, CellEvent } from '../engine/types';
 import { createDragItem, createBoardItem, calculateDropPosition, snapToGrid } from '../utils/dragDropHelpers';
 import { downloadGameModule } from '../utils/jsonLoader';
-import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable } from 'lucide-react';
+import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable, Map } from 'lucide-react';
 import { Tooltip } from './ui/tooltip';
 
 interface GameEditorProps {
@@ -33,7 +33,7 @@ const defaultParams = (type: ActionType, tokens: Token[]): Record<string, any> =
     case 'tradeToken': return { fromTokenId: firstId, fromCount: 1, toTokenId: tokens[1]?.id ?? firstId, toCount: 1 };
     case 'rollDice':   return { sides: 6 };
     case 'drawCard':   return { tokenId: firstId };
-    case 'moveToken':  return { tokenId: firstId };
+    case 'moveToken':  return { tokenId: firstId, moveMode: 'steps', steps: 1 };
     case 'setVariable': return { variableId: '', value: 0 };
     case 'addVariable': return { variableId: '', amount: 1 };
   }
@@ -211,9 +211,47 @@ const ActionParamsEditor: React.FC<{
         <div><label className="block text-xs font-medium mb-0.5">面數</label>{numInput('sides', 2)}</div>
       );
     case 'drawCard':
-    case 'moveToken':
       return (
         <div><label className="block text-xs font-medium mb-0.5">Token</label>{tokenSelect('tokenId')}</div>
+      );
+    case 'moveToken':
+      return (
+        <div className="space-y-2">
+          <div><label className="block text-xs font-medium mb-0.5">移動的 Token</label>{tokenSelect('tokenId')}</div>
+          <div>
+            <label className="block text-xs font-medium mb-0.5">移動方式</label>
+            <select
+              className="w-full p-1.5 border rounded text-sm"
+              value={p.moveMode ?? 'steps'}
+              onChange={e => onChange({ ...p, moveMode: e.target.value, steps: p.steps ?? 1, absolute: undefined })}
+            >
+              <option value="steps">步進（前進 N 格）</option>
+              <option value="absolute">跳躍（直接到第 N 格）</option>
+            </select>
+          </div>
+          {(p.moveMode ?? 'steps') === 'steps' ? (
+            <div>
+              <label className="block text-xs font-medium mb-0.5">格數（可為負數倒退）</label>
+              <input
+                type="number"
+                className="w-full p-1.5 border rounded text-sm"
+                value={p.steps ?? 1}
+                onChange={e => onChange({ ...p, steps: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium mb-0.5">目標格子 index</label>
+              <input
+                type="number"
+                min={0}
+                className="w-full p-1.5 border rounded text-sm"
+                value={p.absolute ?? 0}
+                onChange={e => onChange({ ...p, absolute: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+          )}
+        </div>
       );
     case 'setVariable':
       return (
@@ -260,6 +298,289 @@ const ActionParamsEditor: React.FC<{
     default:
       return null;
   }
+};
+
+// ─── Cell system helpers ──────────────────────────────────────────────────────
+const CELL_TYPE_LABELS: Record<CellTemplateType, string> = {
+  empty:         '空白格',
+  start:         '起點',
+  end:           '終點',
+  bonus_score:   '加分格',
+  penalty_score: '扣分格',
+  bonus_token:   '獲得 Token',
+  penalty_token: '失去 Token',
+  draw_card:     '抽牌格',
+  custom:        '自訂',
+};
+
+/** 根據格子類型與屬性自動產生 CellEvent 清單 */
+function buildCellEvents(type: CellTemplateType, props: Record<string, any>): CellEvent[] {
+  switch (type) {
+    case 'end':
+      return [{ trigger: 'onLand', action: { type: 'winGame', playerId: '{currentPlayer}' } }];
+    case 'bonus_score':
+      return [{ trigger: 'onLand', action: { type: 'addScore', playerId: '{currentPlayer}', amount: props.amount ?? 5 } }];
+    case 'penalty_score':
+      return [{ trigger: 'onLand', action: { type: 'addScore', playerId: '{currentPlayer}', amount: -(props.amount ?? 5) } }];
+    case 'bonus_token':
+      return [{ trigger: 'onLand', action: { type: 'gainToken', tokenId: props.tokenId, count: props.count ?? 1 } }];
+    case 'penalty_token':
+      return [{ trigger: 'onLand', action: { type: 'spendToken', tokenId: props.tokenId, count: props.count ?? 1 } }];
+    case 'draw_card':
+      return [{ trigger: 'onLand', action: { type: 'drawCard', pileId: props.pileId, tokenId: props.tokenId } }];
+    default:
+      return [];
+  }
+}
+
+// ─── Cells Panel ──────────────────────────────────────────────────────────────
+const CellsPanel: React.FC<{
+  gameModule: GameModule;
+  onChange: (module: GameModule) => void;
+}> = ({ gameModule, onChange }) => {
+  const cells: BoardCell[] = gameModule.boardConfig?.cells ?? [];
+  const cfg = gameModule.boardConfig ?? { width: 800, height: 500, gridSize: 40, showGrid: true };
+
+  const setCells = (next: BoardCell[]) =>
+    onChange({ ...gameModule, boardConfig: { ...cfg, cells: next } });
+
+  const addCell = () => {
+    const newCell: BoardCell = { index: cells.length, name: `格子${cells.length}`, type: 'empty' };
+    setCells([...cells, newCell]);
+  };
+
+  const removeCell = (idx: number) => {
+    const next = cells.filter((_, i) => i !== idx).map((c, i) => ({ ...c, index: i }));
+    setCells(next);
+  };
+
+  const updateCell = (idx: number, patch: Partial<BoardCell>) => {
+    const updated = { ...cells[idx], ...patch };
+    // 重新計算 events（custom 型別保留使用者設定）
+    if (patch.type && patch.type !== 'custom') {
+      updated.events = buildCellEvents(updated.type, updated.properties ?? {});
+    } else if (patch.properties && updated.type !== 'custom') {
+      updated.events = buildCellEvents(updated.type, updated.properties ?? {});
+    }
+    setCells(cells.map((c, i) => (i === idx ? updated : c)));
+  };
+
+  const addPreset = (preset: 'basic_loop' | 'straight_10') => {
+    let newCells: BoardCell[];
+    if (preset === 'basic_loop') {
+      // 20 格循環：起點、終點、空白、加分、扣分混合
+      newCells = [
+        { index: 0,  name: '起點',   type: 'start',         properties: {} },
+        { index: 1,  name: '空白',   type: 'empty',         properties: {} },
+        { index: 2,  name: '+5分',   type: 'bonus_score',   properties: { amount: 5 },  events: buildCellEvents('bonus_score', { amount: 5 }) },
+        { index: 3,  name: '空白',   type: 'empty',         properties: {} },
+        { index: 4,  name: '-3分',   type: 'penalty_score', properties: { amount: 3 },  events: buildCellEvents('penalty_score', { amount: 3 }) },
+        { index: 5,  name: '空白',   type: 'empty',         properties: {} },
+        { index: 6,  name: '+10分',  type: 'bonus_score',   properties: { amount: 10 }, events: buildCellEvents('bonus_score', { amount: 10 }) },
+        { index: 7,  name: '空白',   type: 'empty',         properties: {} },
+        { index: 8,  name: '-5分',   type: 'penalty_score', properties: { amount: 5 },  events: buildCellEvents('penalty_score', { amount: 5 }) },
+        { index: 9,  name: '空白',   type: 'empty',         properties: {} },
+        { index: 10, name: '+5分',   type: 'bonus_score',   properties: { amount: 5 },  events: buildCellEvents('bonus_score', { amount: 5 }) },
+        { index: 11, name: '空白',   type: 'empty',         properties: {} },
+        { index: 12, name: '-3分',   type: 'penalty_score', properties: { amount: 3 },  events: buildCellEvents('penalty_score', { amount: 3 }) },
+        { index: 13, name: '空白',   type: 'empty',         properties: {} },
+        { index: 14, name: '+10分',  type: 'bonus_score',   properties: { amount: 10 }, events: buildCellEvents('bonus_score', { amount: 10 }) },
+        { index: 15, name: '空白',   type: 'empty',         properties: {} },
+        { index: 16, name: '+5分',   type: 'bonus_score',   properties: { amount: 5 },  events: buildCellEvents('bonus_score', { amount: 5 }) },
+        { index: 17, name: '空白',   type: 'empty',         properties: {} },
+        { index: 18, name: '-5分',   type: 'penalty_score', properties: { amount: 5 },  events: buildCellEvents('penalty_score', { amount: 5 }) },
+        { index: 19, name: '終點',   type: 'end',           properties: {},              events: buildCellEvents('end', {}) },
+      ];
+    } else {
+      // 直線 10 格
+      newCells = Array.from({ length: 10 }, (_, i) => ({
+        index: i,
+        name: i === 0 ? '起點' : i === 9 ? '終點' : `格子${i}`,
+        type: (i === 0 ? 'start' : i === 9 ? 'end' : 'empty') as CellTemplateType,
+        properties: {},
+        events: i === 9 ? buildCellEvents('end', {}) : [],
+      }));
+    }
+    setCells(newCells);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-600">格子序列（{cells.length} 格）</span>
+        <Tooltip content="新增格子到序列末端" side="left">
+          <Button size="sm" onClick={addCell}><Plus className="w-3.5 h-3.5" /></Button>
+        </Tooltip>
+      </div>
+
+      {cells.length === 0 && (
+        <div className="text-xs text-gray-400 text-center py-3">
+          點擊 + 新增格子，或使用快速範本
+        </div>
+      )}
+
+      <div className="flex gap-1.5 flex-wrap">
+        <button
+          className="text-xs px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100"
+          onClick={() => addPreset('straight_10')}
+        >直線10格</button>
+        <button
+          className="text-xs px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100"
+          onClick={() => addPreset('basic_loop')}
+        >循環20格</button>
+        {cells.length > 0 && (
+          <button
+            className="text-xs px-2 py-1 bg-red-50 text-red-500 border border-red-200 rounded hover:bg-red-100"
+            onClick={() => setCells([])}
+          >清空</button>
+        )}
+      </div>
+
+      <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
+        {cells.map((cell, idx) => (
+          <CellRow
+            key={idx}
+            cell={cell}
+            idx={idx}
+            tokens={gameModule.tokens}
+            onUpdate={patch => updateCell(idx, patch)}
+            onRemove={() => removeCell(idx)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const CellRow: React.FC<{
+  cell: BoardCell;
+  idx: number;
+  tokens: Token[];
+  onUpdate: (patch: Partial<BoardCell>) => void;
+  onRemove: () => void;
+}> = ({ cell, idx, tokens, onUpdate, onRemove }) => {
+  const [expanded, setExpanded] = useState(false);
+  const props = cell.properties ?? {};
+
+  const typeColor: Record<CellTemplateType, string> = {
+    empty:         'bg-gray-100 text-gray-500',
+    start:         'bg-green-100 text-green-700',
+    end:           'bg-purple-100 text-purple-700',
+    bonus_score:   'bg-blue-100 text-blue-700',
+    penalty_score: 'bg-red-100 text-red-700',
+    bonus_token:   'bg-yellow-100 text-yellow-700',
+    penalty_token: 'bg-orange-100 text-orange-700',
+    draw_card:     'bg-indigo-100 text-indigo-700',
+    custom:        'bg-gray-200 text-gray-700',
+  };
+
+  return (
+    <div className="border rounded-lg bg-white overflow-hidden">
+      <div
+        className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-50 select-none"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs flex items-center justify-center font-mono shrink-0">
+          {idx}
+        </span>
+        <span className="flex-1 text-sm truncate">{cell.name}</span>
+        <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${typeColor[cell.type]}`}>
+          {CELL_TYPE_LABELS[cell.type]}
+        </span>
+        <button
+          className="text-red-400 hover:text-red-600 shrink-0"
+          onClick={e => { e.stopPropagation(); onRemove(); }}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="px-3 pb-3 space-y-2 border-t bg-gray-50">
+          <div className="pt-2">
+            <label className="block text-xs font-medium mb-0.5">格子名稱</label>
+            <input
+              type="text"
+              className="w-full p-1.5 border rounded text-sm"
+              value={cell.name}
+              onChange={e => onUpdate({ name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-0.5">格子類型</label>
+            <select
+              className="w-full p-1.5 border rounded text-sm"
+              value={cell.type}
+              onChange={e => onUpdate({ type: e.target.value as CellTemplateType, properties: {} })}
+            >
+              {(Object.keys(CELL_TYPE_LABELS) as CellTemplateType[]).map(t => (
+                <option key={t} value={t}>{CELL_TYPE_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          {/* 類型相關屬性 */}
+          {(cell.type === 'bonus_score' || cell.type === 'penalty_score') && (
+            <div>
+              <label className="block text-xs font-medium mb-0.5">
+                {cell.type === 'bonus_score' ? '加分值' : '扣分值'}
+              </label>
+              <input
+                type="number" min={1}
+                className="w-full p-1.5 border rounded text-sm"
+                value={props.amount ?? 5}
+                onChange={e => onUpdate({ properties: { ...props, amount: parseInt(e.target.value) || 1 } })}
+              />
+            </div>
+          )}
+          {(cell.type === 'bonus_token' || cell.type === 'penalty_token') && (
+            <>
+              <div>
+                <label className="block text-xs font-medium mb-0.5">Token</label>
+                <select
+                  className="w-full p-1.5 border rounded text-sm"
+                  value={props.tokenId ?? ''}
+                  onChange={e => onUpdate({ properties: { ...props, tokenId: e.target.value } })}
+                >
+                  <option value="">-- 選擇 Token --</option>
+                  {tokens.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-0.5">數量</label>
+                <input
+                  type="number" min={1}
+                  className="w-full p-1.5 border rounded text-sm"
+                  value={props.count ?? 1}
+                  onChange={e => onUpdate({ properties: { ...props, count: parseInt(e.target.value) || 1 } })}
+                />
+              </div>
+            </>
+          )}
+          {cell.type === 'draw_card' && (
+            <div>
+              <label className="block text-xs font-medium mb-0.5">Token（直接給予）</label>
+              <select
+                className="w-full p-1.5 border rounded text-sm"
+                value={props.tokenId ?? ''}
+                onChange={e => onUpdate({ properties: { ...props, tokenId: e.target.value } })}
+              >
+                <option value="">-- 選擇 Token --</option>
+                {tokens.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
+          {cell.events && cell.events.length > 0 && (
+            <div className="text-xs text-gray-400 bg-white border rounded p-2">
+              <span className="font-medium text-gray-500">觸發事件：</span>
+              {cell.events.map((e, i) => (
+                <span key={i} className="ml-1">{e.trigger} → {e.action.type}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ─── Variables Panel ─────────────────────────────────────────────────────────
@@ -536,7 +857,7 @@ const PlayersPanel: React.FC<{
 
 // ─── Main GameEditor ──────────────────────────────────────────────────────────
 export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModuleChange }) => {
-  const [leftTab, setLeftTab] = useState<'tokens' | 'actions' | 'players' | 'variables'>('tokens');
+  const [leftTab, setLeftTab] = useState<'tokens' | 'actions' | 'players' | 'variables' | 'cells'>('tokens');
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [showBoardConfig, setShowBoardConfig] = useState(false);
@@ -622,6 +943,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
     { id: 'actions'   as const, label: '動作', icon: <Zap className="w-3.5 h-3.5" /> },
     { id: 'players'   as const, label: '玩家', icon: <Users className="w-3.5 h-3.5" /> },
     { id: 'variables' as const, label: '變數', icon: <Variable className="w-3.5 h-3.5" /> },
+    { id: 'cells'     as const, label: '格子', icon: <Map className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -724,6 +1046,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
         {leftTab === 'variables' && (
           <div className="flex-1 overflow-y-auto p-3">
             <VariablesPanel gameModule={gameModule} onChange={onGameModuleChange} />
+          </div>
+        )}
+
+        {leftTab === 'cells' && (
+          <div className="flex-1 overflow-y-auto p-3">
+            <CellsPanel gameModule={gameModule} onChange={onGameModuleChange} />
           </div>
         )}
       </div>

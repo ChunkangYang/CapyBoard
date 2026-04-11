@@ -186,6 +186,16 @@ const App: React.FC = () => {
     enterEdit(id);
   };
 
+  // ── 從模板建立 ──
+  const handleNewFromTemplate = (template: GameModule) => {
+    const id = generateModuleId();
+    const copy = JSON.parse(JSON.stringify(template)) as GameModule;
+    copy.gameName = { zh: `${copy.gameName.zh}（副本）`, en: `${copy.gameName.en} (Copy)` };
+    saveModule(id, copy);
+    refreshModules();
+    enterEdit(id);
+  };
+
   // ── 匯入 JSON ──
   const handleImport = (mod: GameModule) => {
     const id = generateModuleId();
@@ -301,6 +311,7 @@ const App: React.FC = () => {
             <HomePage
               modules={modules}
               onNew={handleNew}
+              onNewFromTemplate={handleNewFromTemplate}
               onImport={handleImport}
               onEdit={id => enterEdit(id)}
               onPlay={id => enterPlay(id)}

@@ -363,7 +363,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
       case 'tradeToken': return `${tname(p.fromTokenId)} ×${p.fromCount} → ${tname(p.toTokenId)} ×${p.toCount}`;
       case 'rollDice':   return `擲骰（d${p.sides ?? 6}）`;
       case 'drawCard':   return `抽 ${tname(p.tokenId)}`;
-      case 'moveToken':  return `移動 ${tname(p.tokenId)}`;
+      case 'moveToken': {
+        const mode = p.moveMode ?? 'steps';
+        if (mode === 'absolute') return `${tname(p.tokenId)} 跳至格子 ${p.absolute ?? 0}`;
+        return `${tname(p.tokenId)} ${(p.steps ?? 1) >= 0 ? '前進' : '後退'} ${Math.abs(p.steps ?? 1)} 格`;
+      }
       default:           return selectedAction.type;
     }
   };
@@ -426,9 +430,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-2 px-3 text-xs text-gray-600 space-y-1.5">
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 flex-wrap">
                     <span>分數：{player.score}</span>
                     <span className="text-gray-400">回合：{playerTurns}</span>
+                    {/* 格子位置：取該玩家擁有的 token 中有位置資訊的 */}
+                    {(() => {
+                      const cells = gameState.module.boardConfig?.cells ?? [];
+                      const entries = Object.entries(gameState.tokenPositions).filter(([tid]) =>
+                        player.tokens.includes(tid)
+                      );
+                      if (entries.length === 0 || cells.length === 0) return null;
+                      return entries.map(([tid, idx]) => {
+                        const token = gameState.module.tokens.find(t => t.id === tid);
+                        const cell = cells[idx];
+                        return (
+                          <span key={tid} className="text-blue-600 font-medium">
+                            {token?.icon}{token?.name ?? tid}：格{idx}「{cell?.name ?? '?'}」
+                          </span>
+                        );
+                      });
+                    })()}
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {Object.keys(tokenCounts).length === 0

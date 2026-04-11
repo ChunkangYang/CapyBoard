@@ -1,4 +1,4 @@
-import { GameModule, GameState, Player, Condition, GameAction, TurnRecord, GameVariable } from './types';
+import { GameModule, GameState, Player, Condition, GameAction, TurnRecord, BoardCell } from './types';
 
 export class RuleEngine {
   private gameState: GameState;
@@ -29,6 +29,7 @@ export class RuleEngine {
       currentTurnActions: [],
       pilesState,
       variablesState,
+      tokenPositions: {},
     };
   }
 
@@ -136,9 +137,59 @@ export class RuleEngine {
         break;
       }
       case 'moveToken': {
-        const { tokenId } = params;
+        const { tokenId, steps = 1, absolute } = params;
         const token = this.gameState.module.tokens.find(t => t.id === tokenId);
-        this.addEventLog(`移動 ${token?.name ?? tokenId}（棋盤功能將於後續版本實作）`);
+        const cells = this.gameState.module.boardConfig?.cells ?? [];
+        if (cells.length === 0) {
+          this.addEventLog(`移動 ${token?.name ?? tokenId}（尚未設定格子序列）`);
+          break;
+        }
+        const cellCount = cells.length;
+        const current = this.gameState.tokenPositions[tokenId] ?? -1;
+
+        let nextIndex: number;
+        if (absolute !== undefined) {
+          // 絕對跳躍到指定格
+          nextIndex = Math.max(0, Math.min(cellCount - 1, absolute));
+        } else {
+          // 步進：從當前位置前進 N 格（未進場視為從 -1 出發）
+          nextIndex = ((current + steps) % cellCount + cellCount) % cellCount;
+        }
+
+        // 計算經過的格子（用於 onPass 觸發）
+        const passed: number[] = [];
+        if (current >= 0 && steps > 1) {
+          for (let i = 1; i < steps; i++) {
+            passed.push(((current + i) % cellCount + cellCount) % cellCount);
+          }
+        }
+
+        this.gameState.tokenPositions[tokenId] = nextIndex;
+        const landedCell = cells[nextIndex];
+        this.addEventLog(`${token?.name ?? tokenId} 移動 ${steps > 0 ? '+' : ''}${steps} 格，落在「${landedCell?.name ?? `格子${nextIndex}`}」（index ${nextIndex}）`);
+
+        // 記錄落地資訊，供 onTokenLand 規則使用
+        this.gameState.lastLandedCell = { tokenId, cellIndex: nextIndex };
+
+        // 先觸發 onPass（經過的格子）
+        for (const passIdx of passed) {
+          const passCell = cells[passIdx];
+          if (passCell?.events) {
+            for (const evt of passCell.events) {
+              if (evt.trigger === 'onPass') this.executeGameAction(evt.action);
+            }
+          }
+        }
+
+        // 觸發落地格子的 CellEvent（onLand）
+        if (landedCell?.events) {
+          for (const evt of landedCell.events) {
+            if (evt.trigger === 'onLand') this.executeGameAction(evt.action);
+          }
+        }
+
+        // 觸發 onTokenLand 規則（開發者在規則編輯器定義的規則）
+        this.triggerRules('onTokenLand');
         break;
       }
       case 'setVariable': {
@@ -276,6 +327,20 @@ export class RuleEngine {
           const itemGridY = Math.round(item.position.y / gridSize);
           return itemGridX === gridX && itemGridY === gridY;
         });
+      }
+      case 'tokenAtCellIndex': {
+        // 格子序列：token 是否在第 N 格
+        const { tokenId: tId1, cellIndex } = condition;
+        return (this.gameState.tokenPositions[tId1 as string] ?? -1) === cellIndex;
+      }
+      case 'tokenOnCellType': {
+        // 格子序列：token 是否落在某類型的格子
+        const { tokenId: tId2, cellType } = condition;
+        const tokenId = tId2 as string;
+        const idx = this.gameState.tokenPositions[tokenId] ?? -1;
+        if (idx < 0) return false;
+        const cell = (this.gameState.module.boardConfig?.cells ?? [])[idx];
+        return cell?.type === cellType;
       }
       default:
         return false;
@@ -419,6 +484,7 @@ export class RuleEngine {
       currentTurnActions: [],
       pilesState,
       variablesState,
+      tokenPositions: {},
     };
     this.addEventLog('遊戲重新開始');
   }

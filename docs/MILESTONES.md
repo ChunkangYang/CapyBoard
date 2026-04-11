@@ -25,7 +25,7 @@
 ### Sprint 3（5/8 ~ 5/22）— 規則系統補完
 - [x] 實作 addScore action
 - [x] 新增更多條件類型：hasScore、playerTurnCount
-- [ ] 新增條件類型：tokenAtPosition（棋盤功能，延至 Sprint 5）
+- [x] 新增條件類型：tokenAtPosition（已在 Sprint 5 完成）
 - [x] 實作 actionsPerTurn 限制
 - [x] 規則編輯器 UI 對應更新
 - [x] 規則衝突/優先順序基本處理
@@ -46,7 +46,7 @@
 - [x] Token 吸附格線功能
 - [x] 棋盤尺寸自訂
 - [x] tokenAtPosition 條件類型（完成）
-- [ ] 格子屬性設定（類型、事件觸發）（延至後續）
+- [x] 格子屬性設定（類型、事件觸發）— BoardCell、CellEvent、CellsPanel UI（feature/cell-system-movetoken）
 
 ### Sprint 6（6/19 ~ 7/3）— 遊戲流程完善
 - [x] 勝利/失敗條件多樣化（新增 loseGame action）
@@ -75,7 +75,7 @@
 - [x] 範例遊戲 1：淘金熱（資源鏈遊戲）
 - [x] 範例遊戲 2：卡牌大師（卡牌合成遊戲）
 - [x] 範例遊戲 3：骰子冒險（擲骰積分遊戲）
-- [ ] 「從模板建立」功能（待後續 sprint 評估）
+- [x] 「從模板建立」功能 — 新建遊戲 Modal，可選空白或複製現有模組
 
 ### Sprint 10（8/14 ~ 8/28）— 遊戲測試體驗
 - [x] 編輯器內快速測試模式（不用切 tab）：工具列「⚡ 快速測試」按鈕，右側 Drawer 嵌入 GameBoard
