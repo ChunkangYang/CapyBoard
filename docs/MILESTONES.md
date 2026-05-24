@@ -1,4 +1,4 @@
-# InfinityBoard — Milestones & Sprint Plan
+# CapyBoard — Milestones & Sprint Plan
 
 > 目標：2026 年底前有一個可 demo 的版本
 > 規劃日期：2026-04-10

@@ -1,6 +1,19 @@
 import { GameModule } from '../engine/types';
 
-const STORAGE_KEY = 'infinityboard_modules';
+const STORAGE_KEY = 'capyboard_modules';
+const LEGACY_STORAGE_KEY = 'infinityboard_modules';
+
+function migrateLegacyKey(): void {
+  try {
+    if (localStorage.getItem(STORAGE_KEY) !== null) return;
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacy === null) return;
+    localStorage.setItem(STORAGE_KEY, legacy);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // 忽略 migration 錯誤
+  }
+}
 
 export interface ModuleMeta {
   id: string;
@@ -21,6 +34,7 @@ interface StoredData {
 
 function loadRaw(): StoredData {
   try {
+    migrateLegacyKey();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw) as StoredData;
   } catch {

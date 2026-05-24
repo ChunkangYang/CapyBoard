@@ -1,8 +1,8 @@
 {
-  "name": "infinity-board",
+  "name": "capy-board",
   "version": "1.0.0",
   "description": "桌遊大師 - 遊戲編輯器與執行平台",
-  "homepage": "https://cky19.github.io/InfinityBoard",
+  "homepage": "https://chunkangyang.github.io/CapyBoard",
   "main": "index.js",
   "scripts": {
     "start": "react-scripts start",

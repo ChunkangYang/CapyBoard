@@ -1,5 +1,5 @@
 {
-  "gameName": { "zh": "桌遊大師 Demo", "en": "Infinity Board Demo" },
+  "gameName": { "zh": "桌遊大師 Demo", "en": "CapyBoard Demo" },
   "players": [
     { "id": "player1", "name": "玩家1", "tokens": [], "score": 0 },
     { "id": "player2", "name": "玩家2", "tokens": [], "score": 0 }

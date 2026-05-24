@@ -6,11 +6,11 @@
 
 ## 部署相關
 
-### 1. 建立 GitHub Repository 並設定 Remote
+### 1. 建立 GitHub Repository 並設定 Remote（尚未執行）
 
 ```bash
-# 在 GitHub 建立 repo：cky19/InfinityBoard
-git remote add origin https://github.com/cky19/InfinityBoard.git
+# 在 GitHub 建立 repo：ChunkangYang/CapyBoard
+git remote add origin https://github.com/ChunkangYang/CapyBoard.git
 git push -u origin main
 ```
 

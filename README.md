@@ -1,10 +1,10 @@
-# 桌遊大師 (Infinity Board)
+# 桌遊大師 (CapyBoard)
 
 一個強大的 Web App 桌遊設計平台，讓每個人都能設計並試玩自己的桌遊。
 
 ## 線上 Demo
 
-**GitHub Pages：** https://cky19.github.io/InfinityBoard
+**GitHub Pages：** https://chunkangyang.github.io/CapyBoard
 
 ## 功能總覽
 
@@ -142,7 +142,7 @@ npm run deploy
 ## 專案結構
 
 ```
-InfinityBoard/
+CapyBoard/
 ├── .github/workflows/deploy.yml  # CI/CD
 ├── public/index.html
 ├── src/

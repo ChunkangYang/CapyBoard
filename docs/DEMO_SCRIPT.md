@@ -1,4 +1,4 @@
-# InfinityBoard — Demo 展示腳本
+# CapyBoard — Demo 展示腳本
 
 > 目標受眾：對桌遊設計有興趣的非技術用戶、投資人、合作夥伴  
 > 時間：約 10～15 分鐘  
