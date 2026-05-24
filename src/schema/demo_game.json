@@ -1,13 +1,13 @@
 {
-  "gameName": { "zh": "桌遊大師", "en": "Infinity Board" },
+  "gameName": { "zh": "桌遊大師 Demo", "en": "CapyBoard Demo" },
   "players": [
     { "id": "player1", "name": "玩家1", "tokens": [], "score": 0 },
     { "id": "player2", "name": "玩家2", "tokens": [], "score": 0 }
   ],
   "tokens": [
-    { "id": "gold",  "name": "金幣", "type": "resource" },
-    { "id": "gem",   "name": "寶石", "type": "resource" },
-    { "id": "wheat", "name": "大麥", "type": "resource" }
+    { "id": "gold",  "name": "金幣", "type": "resource", "icon": "🪙" },
+    { "id": "gem",   "name": "寶石", "type": "resource", "icon": "💎" },
+    { "id": "wheat", "name": "大麥", "type": "resource", "icon": "🌾" }
   ],
   "actions": [
     { "id": "gain_gold",  "name": "獲得金幣", "type": "gainToken",  "params": { "tokenId": "gold",  "count": 1 } },
@@ -25,5 +25,6 @@
   ],
   "turn": { "currentPlayerId": "player1", "actionsPerTurn": 1 },
   "board": { "items": [] },
-  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true, "backgroundColor": "#fefce8" },
+  "theme": { "primaryColor": "#d97706" }
 }

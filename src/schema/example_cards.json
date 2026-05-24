@@ -5,25 +5,45 @@
     { "id": "hero2", "name": "英雄乙", "tokens": [], "score": 0 }
   ],
   "tokens": [
-    { "id": "common",    "name": "普通牌",   "type": "card" },
-    { "id": "rare_mat",  "name": "稀有素材", "type": "resource" },
-    { "id": "rare_card", "name": "★ 稀有牌", "type": "card" }
+    { "id": "common",    "name": "普通牌",   "type": "card",     "icon": "🃏" },
+    { "id": "rare_mat",  "name": "稀有素材", "type": "resource", "icon": "✨" },
+    { "id": "rare_card", "name": "★稀有牌",  "type": "card",     "icon": "⭐" }
+  ],
+  "variables": [
+    { "id": "combo", "name": "連擊數", "defaultValue": 0 }
   ],
   "actions": [
-    { "id": "draw",       "name": "抽普通牌", "type": "gainToken",  "params": { "tokenId": "common",   "count": 2 } },
-    { "id": "craft_mat",  "name": "提煉素材", "type": "tradeToken", "params": { "fromTokenId": "common",   "fromCount": 3, "toTokenId": "rare_mat",  "toCount": 1 } },
-    { "id": "craft_rare", "name": "合成稀有", "type": "tradeToken", "params": { "fromTokenId": "rare_mat", "fromCount": 3, "toTokenId": "rare_card", "toCount": 1 } }
+    { "id": "draw",       "name": "抽普通牌",   "type": "gainToken",  "params": { "tokenId": "common",   "count": 2 } },
+    { "id": "craft_mat",  "name": "提煉素材",   "type": "tradeToken", "params": { "fromTokenId": "common",   "fromCount": 3, "toTokenId": "rare_mat",  "toCount": 1 } },
+    { "id": "craft_rare", "name": "合成稀有",   "type": "tradeToken", "params": { "fromTokenId": "rare_mat", "fromCount": 3, "toTokenId": "rare_card", "toCount": 1 } },
+    { "id": "combo_up",   "name": "積累連擊",   "type": "addVariable","params": { "variableId": "combo", "amount": 1 } },
+    { "id": "combo_reset","name": "重置連擊",   "type": "setVariable","params": { "variableId": "combo", "value": 0 } }
   ],
   "rules": [
+    {
+      "id": "combo_bonus",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasVariable", "variableId": "combo", "operator": ">=", "amount": 3 },
+      "action": { "type": "addScore", "playerId": "{currentPlayer}", "amount": 5 },
+      "priority": 1
+    },
     {
       "id": "win_rare",
       "trigger": "onActionEnd",
       "condition": { "type": "hasTokenCount", "tokenId": "rare_card", "count": 2 },
       "action": { "type": "winGame", "playerId": "{currentPlayer}" },
-      "priority": 0
+      "priority": 10
+    },
+    {
+      "id": "win_score",
+      "trigger": "onTurnEnd",
+      "condition": { "type": "hasScore", "playerId": "{currentPlayer}", "operator": ">=", "amount": 20 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" },
+      "priority": 5
     }
   ],
   "turn": { "currentPlayerId": "hero1", "actionsPerTurn": 3 },
   "board": { "items": [] },
-  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true }
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true, "backgroundColor": "#f0f9ff" },
+  "theme": { "primaryColor": "#0ea5e9" }
 }

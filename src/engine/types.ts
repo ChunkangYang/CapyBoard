@@ -14,16 +14,48 @@ export interface Token {
   id: string;
   name: string;
   type: 'resource' | 'card' | 'dice' | 'custom';
+  icon?: string;  // emoji 或文字圖示，例如 '⚔️' '🪙'
   properties?: Record<string, any>;
 }
 
 export type ActionType =
-  | 'gainToken'   // 玩家獲得 Token
-  | 'spendToken'  // 玩家消耗 Token
-  | 'tradeToken'  // 消耗 A 換得 B
-  | 'rollDice'    // 擲骰子
-  | 'drawCard'    // 抽牌
-  | 'moveToken';  // 移動 Token（棋盤）
+  | 'gainToken'    // 玩家獲得 Token
+  | 'spendToken'   // 玩家消耗 Token
+  | 'tradeToken'   // 消耗 A 換得 B
+  | 'rollDice'     // 擲骰子
+  | 'drawCard'     // 抽牌
+  | 'moveToken'    // 移動 Token（棋盤格子序列）
+  | 'setVariable'  // 設定遊戲變數
+  | 'addVariable'; // 增加遊戲變數
+
+// ─── 格子系統 ──────────────────────────────────────────────────────────────────
+
+/** 格子事件：token 落到格子時自動觸發的 system action */
+export interface CellEvent {
+  trigger: 'onLand' | 'onPass';  // 落地觸發 | 經過觸發
+  action: GameAction;
+}
+
+/** 預設格子類型範本 */
+export type CellTemplateType =
+  | 'empty'         // 空白格（無事發生）
+  | 'start'         // 起點
+  | 'end'           // 終點（可配合 winGame）
+  | 'bonus_score'   // 加分格
+  | 'penalty_score' // 扣分格
+  | 'bonus_token'   // 獲得 Token
+  | 'penalty_token' // 失去 Token
+  | 'draw_card'     // 抽牌
+  | 'custom';       // 自訂（手動設定 events）
+
+/** 棋盤格子 — 以 index 序列為主，視覺位置由前端自訂 */
+export interface BoardCell {
+  index: number;              // 0-based 序列編號
+  name: string;               // 顯示名稱，例如「起點」「+10分」
+  type: CellTemplateType;     // 格子類型
+  properties?: Record<string, any>;  // 類型相關參數（如 amount、tokenId）
+  events?: CellEvent[];       // 落地/經過時自動觸發的 system actions
+}
 
 export interface Action {
   id: string;
@@ -47,7 +79,7 @@ export interface GameAction {
 
 export interface Rule {
   id: string;
-  trigger: 'onActionEnd' | 'onTurnEnd' | 'onObjectChange';
+  trigger: 'onActionEnd' | 'onTurnEnd' | 'onObjectChange' | 'onTokenLand';
   condition: Condition;
   action: GameAction;
   priority?: number;  // 數字越大越優先，預設 0
@@ -58,11 +90,24 @@ export interface Turn {
   actionsPerTurn: number;
 }
 
+export interface GameVariable {
+  id: string;
+  name: string;
+  defaultValue: number;
+}
+
+export interface BoardTheme {
+  primaryColor?: string;  // hex color, e.g. '#3b82f6'
+  boardBackground?: string;  // hex color or css color
+}
+
 export interface BoardConfig {
   width: number;     // 工作區寬度 (px)
   height: number;    // 工作區高度 (px)
   gridSize: number;  // 格線間距 (px)
   showGrid: boolean;
+  backgroundColor?: string;  // 棋盤背景色
+  cells?: BoardCell[];        // 格子序列（index 0, 1, 2, ... N）
 }
 
 export interface CardPile {
@@ -81,6 +126,8 @@ export interface GameModule {
   board?: BoardLayout;
   boardConfig?: BoardConfig;
   piles?: CardPile[];
+  variables?: GameVariable[];
+  theme?: BoardTheme;
 }
 
 export interface TurnRecord {
@@ -103,7 +150,10 @@ export interface GameState {
   turnHistory: TurnRecord[];
   currentTurnActions: string[];
   lastDiceResult?: { sides: number; result: number };
-  pilesState: Record<string, string[]>;  // pileId → 剩餘牌堆
+  pilesState: Record<string, string[]>;     // pileId → 剩餘牌堆
+  variablesState: Record<string, number>;   // variableId → 當前值
+  tokenPositions: Record<string, number>;   // tokenId → 當前格子 index（-1 = 未進入棋盤）
+  lastLandedCell?: { tokenId: string; cellIndex: number };  // 最後一次落地資訊
 }
 
 export interface DragItem {

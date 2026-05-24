@@ -1,61 +1,113 @@
-# 桌遊大師 (Infinity Board)
+# 桌遊大師 (CapyBoard)
 
-一個強大的 Web App 桌遊軟體，提供遊戲編輯器與執行平台。
+一個強大的 Web App 桌遊設計平台，讓每個人都能設計並試玩自己的桌遊。
 
-## 專案特色
+## 線上 Demo
 
-### 🎮 核心功能
-- **遊戲編輯器**：拖拉式元件編輯，直觀建立桌遊
-- **規則引擎**：事件驅動的遊戲邏輯系統
-- **遊戲執行**：即時測試和驗證遊戲規則
-- **模組化設計**：支援 JSON 格式的遊戲模組匯入/匯出
+**GitHub Pages：** https://chunkangyang.github.io/CapyBoard
 
-### 🛠️ 技術架構
-- **前端**：React + TypeScript
-- **UI 框架**：Tailwind CSS + shadcn/ui
-- **拖拉功能**：react-dnd
-- **規則引擎**：自訂事件驅動系統
-- **模組格式**：JSON Schema 驗證
+## 功能總覽
+
+### 遊戲編輯器
+- 拖拉式元件編輯（Token、卡片、骰子）
+- Token 自訂圖示（Emoji / 文字）
+- 棋盤格線系統與吸附功能，可自訂棋盤尺寸
+- 棋盤背景色彩與遊戲主題色彩設定
+- 佈局持久化（工作區位置存入 GameModule）
+
+### 規則編輯器
+- 完整動作類型：gainToken、spendToken、tradeToken、rollDice、drawCard、moveToken、addScore、setVariable、addVariable、triggerRule、winGame、loseGame
+- 條件類型：hasTokenCount、hasScore、playerTurnCount、tokenAtPosition、hasVariable
+- 條件組合：AND / OR 邏輯，支援無限嵌套
+- 觸發鏈：一個規則觸發另一個規則（防無限遞迴，最大深度 5）
+- 規則優先順序設定
+- 每回合行動次數限制（actionsPerTurn）
+
+### 遊戲執行
+- 完整回合流程：開始回合 → 執行動作 → 結束回合 → 換人
+- 玩家狀態即時面板（Token、分數、回合數）
+- 牌堆系統（CardPile，支援隨機抽牌）
+- 自訂遊戲變數（血量、魔力等）
+- 勝利 / 失敗條件多樣化
+- 遊戲結束畫面
+- 骰子擲骰動畫
+
+### 測試 & 偵錯
+- 快速測試模式（編輯器內右側 Drawer，不用切 tab）
+- 倒退最多 20 步（rewind）
+- 直接修改玩家分數 / Token（測試用 state editor）
+- 遊戲規則自動驗證（頂部警告列：無勝利條件、無法執行的動作等）
+
+### 模組管理
+- 首頁：瀏覽、建立、複製、刪除遊戲模組
+- 匯入 / 匯出 JSON
+- localStorage 本機儲存多個遊戲模組
+- Ctrl+Z / Ctrl+Y 復原 / 重做（最多 50 步）
+
+### 新手引導
+- Onboarding Tour（首次進入自動顯示）
+- 各功能 Tooltip 說明
+- 「如何設計你的第一個遊戲」教學流程
+
+### 範例遊戲（內建 4 個）
+| 名稱 | 類型 | 特色 |
+|------|------|------|
+| 示範遊戲 | 基礎 | 展示核心功能 |
+| 淘金熱 | 資源鏈 | 資源交換鏈條 |
+| 卡牌大師 | 卡牌合成 | 牌堆 + 合成 |
+| 骰子冒險 | 擲骰積分 | 骰子 + 變數 |
+
+---
+
+## 技術架構
+
+- **前端**：React 18 + TypeScript
+- **UI**：Tailwind CSS + shadcn/ui（Radix UI）
+- **拖拉**：react-dnd（HTML5 Backend）
+- **規則引擎**：自訂事件驅動系統（src/engine/ruleEngine.ts）
+- **狀態持久化**：localStorage
+- **模組格式**：JSON（含 JSON Schema 驗證）
+- **測試**：Jest（34 個單元測試 + 整合測試）
+
+---
 
 ## 快速開始
 
-### 安裝依賴
 ```bash
 npm install
-```
-
-### 啟動開發伺服器
-```bash
 npm start
 ```
 
-應用程式將在 `http://localhost:3000` 啟動。
+應用程式在 http://localhost:3000 啟動。
 
-## 功能說明
+---
 
-### 1. 遊戲編輯器
-- **元件面板**：可拖拉的 token、卡片、骰子等遊戲元件
-- **工作區**：中央可視化編輯區域，支援拖拉放置
-- **屬性面板**：編輯元件的名稱、類型、效果等屬性
-- **模組匯出**：將編輯完成的遊戲儲存為 JSON 檔案
+## 部署
 
-### 2. 規則編輯器
-- **規則列表**：管理所有遊戲規則
-- **條件設定**：定義觸發規則的條件（如擁有特定數量 token）
-- **動作設定**：設定規則觸發時執行的動作（如獲勝、加分等）
-- **觸發時機**：支援 onActionEnd、onTurnEnd、onObjectChange
+### 方式一：GitHub Pages（手動）
 
-### 3. 遊戲執行
-- **玩家管理**：顯示所有玩家資訊和當前玩家
-- **動作執行**：選擇並執行遊戲動作
-- **資源顯示**：即時顯示玩家擁有的 token 和資源
-- **事件日誌**：記錄所有遊戲事件和規則觸發
-- **勝利條件**：自動檢測並顯示遊戲結束狀態
+```bash
+npm install
+npm run deploy
+```
 
-## 遊戲模組格式
+> 需先將 `package.json` 的 `homepage` 改為你自己的 GitHub Pages 網址，
+> 並確認 repo 已推送至 GitHub。
 
-### JSON Schema
-遊戲模組使用標準化的 JSON 格式，包含以下主要部分：
+### 方式二：GitHub Pages（自動 CI/CD）
+
+每次 push 到 `main` 分支，GitHub Actions 會自動 build 並部署至 `gh-pages` 分支。
+工作流程設定：[.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+
+### 方式三：Vercel
+
+1. 將 repo 匯入 Vercel
+2. Framework 選 **Create React App**
+3. 其他設定保持預設即可（`vercel.json` 已設定好）
+
+---
+
+## 遊戲模組 JSON 格式
 
 ```json
 {
@@ -64,89 +116,60 @@ npm start
     { "id": "player1", "name": "玩家1", "tokens": [], "score": 0 }
   ],
   "tokens": [
-    { "id": "gold", "name": "金幣", "type": "resource" }
+    { "id": "gold", "name": "金幣", "type": "resource", "icon": "🪙" }
   ],
   "actions": [
-    { "id": "buyToken", "name": "購買 Token", "parameters": ["tokenId"], "effect": "效果描述" }
+    { "id": "gain_gold", "name": "獲得金幣", "type": "gainToken", "params": { "tokenId": "gold", "count": 1 } }
   ],
   "rules": [
-    { "id": "winRule", "trigger": "onActionEnd", "condition": {...}, "action": {...} }
+    {
+      "id": "win_rule",
+      "trigger": "onActionEnd",
+      "condition": { "type": "hasTokenCount", "tokenId": "gold", "count": 5 },
+      "action": { "type": "winGame", "playerId": "{currentPlayer}" }
+    }
   ],
-  "turn": { "currentPlayerId": "player1", "actionsPerTurn": 1 }
+  "turn": { "currentPlayerId": "player1", "actionsPerTurn": 1 },
+  "board": { "items": [] },
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true },
+  "variables": [],
+  "piles": []
 }
 ```
 
-### 範例遊戲
-專案包含一個完整的範例遊戲模組 (`src/schema/demo_game.json`)，展示：
-- 2 位玩家
-- 3 種資源 token（金幣、寶石、大麥）
-- 1 個購買動作
-- 1 個勝利規則（擁有 3 個金幣獲勝）
+---
 
 ## 專案結構
 
 ```
-InfinityBoard/
-├── public/
-│   └── index.html
+CapyBoard/
+├── .github/workflows/deploy.yml  # CI/CD
+├── public/index.html
 ├── src/
 │   ├── components/
-│   │   ├── ui/           # 基礎 UI 元件
-│   │   ├── GameEditor.tsx
-│   │   ├── GameBoard.tsx
-│   │   └── RuleEditor.tsx
+│   │   ├── ui/                   # 基礎 UI 元件
+│   │   ├── App.tsx
+│   │   ├── GameEditor.tsx        # 遊戲編輯器
+│   │   ├── GameBoard.tsx         # 遊戲執行
+│   │   ├── RuleEditor.tsx        # 規則編輯器
+│   │   ├── HomePage.tsx          # 模組首頁
+│   │   ├── OnboardingTour.tsx    # 新手引導
+│   │   └── FirstGameGuide.tsx    # 第一個遊戲教學
 │   ├── engine/
-│   │   ├── ruleEngine.ts # 規則引擎
-│   │   └── types.ts      # TypeScript 類型定義
-│   ├── schema/
-│   │   ├── schema.json   # JSON Schema
-│   │   └── demo_game.json
-│   ├── utils/
-│   │   ├── jsonLoader.ts
-│   │   └── dragDropHelpers.ts
-│   ├── App.tsx
-│   └── index.tsx
-├── package.json
-└── README.md
+│   │   ├── ruleEngine.ts         # 規則引擎
+│   │   ├── types.ts              # TypeScript 型別
+│   │   └── __tests__/            # 單元 + 整合測試
+│   ├── schema/                   # 範例遊戲 JSON
+│   └── utils/
+│       ├── gameValidator.ts      # 遊戲規則驗證
+│       ├── moduleStorage.ts      # localStorage 模組管理
+│       └── jsonLoader.ts
+├── vercel.json
+└── package.json
 ```
 
-## 開發指南
-
-### 新增遊戲元件
-1. 在 `GameEditor.tsx` 中新增元件類型
-2. 更新 `types.ts` 中的類型定義
-3. 在規則引擎中處理新元件的邏輯
-
-### 擴充規則系統
-1. 在 `ruleEngine.ts` 中新增條件和動作類型
-2. 更新 `RuleEditor.tsx` 的 UI 介面
-3. 測試新規則在遊戲中的執行
-
-### 自訂 UI 主題
-專案使用 Tailwind CSS，可透過修改 `tailwind.config.js` 和 `src/index.css` 來自訂樣式。
-
-## 未來規劃
-
-### Phase 2
-- 3D token 支援
-- 多人連線功能
-- 進階規則編輯器（視覺化節點編輯）
-
-### Phase 3
-- 遊戲模組市集
-- 社群功能
-- 雲端儲存
+---
 
 ## 授權
 
 MIT License
-
-## 貢獻
-
-歡迎提交 Issue 和 Pull Request！
-
----
-
-**桌遊大師** - 讓每個人都能成為遊戲設計師 🎲
-
-

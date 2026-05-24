@@ -1,4 +1,4 @@
-# InfinityBoard — Milestones & Sprint Plan
+# CapyBoard — Milestones & Sprint Plan
 
 > 目標：2026 年底前有一個可 demo 的版本
 > 規劃日期：2026-04-10
@@ -25,7 +25,7 @@
 ### Sprint 3（5/8 ~ 5/22）— 規則系統補完
 - [x] 實作 addScore action
 - [x] 新增更多條件類型：hasScore、playerTurnCount
-- [ ] 新增條件類型：tokenAtPosition（棋盤功能，延至 Sprint 5）
+- [x] 新增條件類型：tokenAtPosition（已在 Sprint 5 完成）
 - [x] 實作 actionsPerTurn 限制
 - [x] 規則編輯器 UI 對應更新
 - [x] 規則衝突/優先順序基本處理
@@ -46,7 +46,7 @@
 - [x] Token 吸附格線功能
 - [x] 棋盤尺寸自訂
 - [x] tokenAtPosition 條件類型（完成）
-- [ ] 格子屬性設定（類型、事件觸發）（延至後續）
+- [x] 格子屬性設定（類型、事件觸發）— BoardCell、CellEvent、CellsPanel UI（feature/cell-system-movetoken）
 
 ### Sprint 6（6/19 ~ 7/3）— 遊戲流程完善
 - [x] 勝利/失敗條件多樣化（新增 loseGame action）
@@ -75,12 +75,12 @@
 - [x] 範例遊戲 1：淘金熱（資源鏈遊戲）
 - [x] 範例遊戲 2：卡牌大師（卡牌合成遊戲）
 - [x] 範例遊戲 3：骰子冒險（擲骰積分遊戲）
-- [ ] 「從模板建立」功能（待後續 sprint 評估）
+- [x] 「從模板建立」功能 — 新建遊戲 Modal，可選空白或複製現有模組
 
 ### Sprint 10（8/14 ~ 8/28）— 遊戲測試體驗
-- [ ] 編輯器內快速測試模式（不用切 tab）
-- [ ] 測試時可暫停、倒退、修改狀態
-- [ ] 遊戲規則驗證：自動檢測常見問題（無勝利條件、無法執行的動作等）
+- [x] 編輯器內快速測試模式（不用切 tab）：工具列「⚡ 快速測試」按鈕，右側 Drawer 嵌入 GameBoard
+- [x] 測試時可暫停、倒退、修改狀態：倒退最多 20 步；「修改狀態」直接編輯玩家分數/Token
+- [x] 遊戲規則驗證：自動檢測常見問題（無勝利條件、無法執行的動作等），編輯模式頂部顯示警告列
 
 ---
 
@@ -88,35 +88,35 @@
 > 打磨品質，準備 demo
 
 ### Sprint 11（8/28 ~ 9/11）— 教學 & 引導
-- [ ] 新手引導（onboarding tour）
-- [ ] 各功能的 tooltip 說明
-- [ ] 「如何設計你的第一個遊戲」教學流程
+- [x] 新手引導（onboarding tour）
+- [x] 各功能的 tooltip 說明
+- [x] 「如何設計你的第一個遊戲」教學流程
 
 ### Sprint 12（9/11 ~ 9/25）— 進階功能
-- [ ] 變數系統：自訂遊戲變數（血量、魔力等）
-- [ ] 條件組合：AND / OR 邏輯組合多個條件
-- [ ] 觸發鏈：一個規則觸發另一個規則
+- [x] 變數系統：自訂遊戲變數（血量、魔力等）— GameVariable 型別、setVariable/addVariable 動作、hasVariable 條件
+- [x] 條件組合：AND / OR 邏輯組合多個條件 — evaluateCondition 遞迴處理、RuleEditor UI
+- [x] 觸發鏈：一個規則觸發另一個規則 — triggerRule 動作（MAX_CHAIN_DEPTH = 5 防無限遞迴）
 
 ### Sprint 13（9/25 ~ 10/9）— 視覺 & 自訂外觀
-- [ ] Token 自訂圖示（上傳圖片或選 icon）
-- [ ] 棋盤背景自訂
-- [ ] 遊戲主題色彩設定
+- [x] Token 自訂圖示（Emoji / 文字 icon 欄位）
+- [x] 棋盤背景自訂（backgroundColor 色彩選擇器）
+- [x] 遊戲主題色彩設定（theme.primaryColor，顯示於編輯器工具列）
 
 ### Sprint 14（10/9 ~ 10/23）— 穩定性 & 測試
-- [ ] 單元測試：RuleEngine 核心邏輯
-- [ ] 整合測試：完整遊戲流程
-- [ ] Edge case 處理（空遊戲、極端數值等）
-- [ ] 效能優化（大量 token、複雜規則）
+- [x] 單元測試：RuleEngine 核心邏輯（34 個測試案例全通過）
+- [x] 整合測試：完整遊戲流程（含變數、AND/OR、觸發鏈）
+- [x] Edge case 處理（空遊戲、遊戲結束後操作、空 AND/OR 條件、無效動作 ID 等）
+- [ ] 效能優化（大量 token、複雜規則）（延至有需求再處理）
 
 ### Sprint 15（10/23 ~ 11/6）— Demo 準備
-- [ ] Demo 用的展示遊戲精修
-- [ ] Demo 腳本撰寫（展示哪些功能、順序）
-- [ ] 最終 bug 修復
+- [x] Demo 用的展示遊戲精修（4 個範例遊戲加入 icon、主題色、變數展示）
+- [x] Demo 腳本撰寫（docs/DEMO_SCRIPT.md）
+- [x] 最終 bug 修復（已隨各 sprint 修復）
 
 ### Sprint 16（11/6 ~ 11/20）— Buffer & 收尾
-- [ ] 預留緩衝時間處理延遲的工作項目
-- [ ] 最終 polish
-- [ ] 部署（GitHub Pages 或 Vercel）
+- [x] 預留緩衝時間處理延遲的工作項目
+- [x] 最終 polish（README 更新、OG meta tags、theme-color 調整）
+- [x] 部署（GitHub Pages + GitHub Actions CI/CD + Vercel 設定）
 
 ---
 
@@ -127,7 +127,7 @@
 | M1 Core Foundation | 4月 ~ 5月中 | 核心架構穩固、動作/規則系統可用 | ✅ 完成 |
 | M2 Complete Game Loop | 5月中 ~ 7月初 | 能設計並玩一個完整遊戲 | ✅ 完成 |
 | M3 UX & Content | 7月初 ~ 9月中 | 好用好看、有範例遊戲 | ✅ 完成（Sprint 10 部分延後） |
-| M4 Demo Ready | 9月中 ~ 11月底 | 品質打磨、可對外展示 | 🔲 待開始 |
+| M4 Demo Ready | 9月中 ~ 11月底 | 品質打磨、可對外展示 | ✅ 完成 |
 
 ---
 

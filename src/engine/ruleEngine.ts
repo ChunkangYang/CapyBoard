@@ -1,4 +1,4 @@
-import { GameModule, GameState, Player, Condition, GameAction, TurnRecord } from './types';
+import { GameModule, GameState, Player, Condition, GameAction, TurnRecord, BoardCell } from './types';
 
 export class RuleEngine {
   private gameState: GameState;
@@ -8,6 +8,11 @@ export class RuleEngine {
     const pilesState: Record<string, string[]> = {};
     for (const pile of gameModule.piles ?? []) {
       pilesState[pile.id] = [...pile.cards];
+    }
+
+    const variablesState: Record<string, number> = {};
+    for (const v of gameModule.variables ?? []) {
+      variablesState[v.id] = v.defaultValue;
     }
 
     this.gameState = {
@@ -23,6 +28,8 @@ export class RuleEngine {
       turnHistory: [],
       currentTurnActions: [],
       pilesState,
+      variablesState,
+      tokenPositions: {},
     };
   }
 
@@ -130,9 +137,74 @@ export class RuleEngine {
         break;
       }
       case 'moveToken': {
-        const { tokenId } = params;
+        const { tokenId, steps = 1, absolute } = params;
         const token = this.gameState.module.tokens.find(t => t.id === tokenId);
-        this.addEventLog(`移動 ${token?.name ?? tokenId}（棋盤功能將於後續版本實作）`);
+        const cells = this.gameState.module.boardConfig?.cells ?? [];
+        if (cells.length === 0) {
+          this.addEventLog(`移動 ${token?.name ?? tokenId}（尚未設定格子序列）`);
+          break;
+        }
+        const cellCount = cells.length;
+        const current = this.gameState.tokenPositions[tokenId] ?? -1;
+
+        let nextIndex: number;
+        if (absolute !== undefined) {
+          // 絕對跳躍到指定格
+          nextIndex = Math.max(0, Math.min(cellCount - 1, absolute));
+        } else {
+          // 步進：從當前位置前進 N 格（未進場視為從 -1 出發）
+          nextIndex = ((current + steps) % cellCount + cellCount) % cellCount;
+        }
+
+        // 計算經過的格子（用於 onPass 觸發）
+        const passed: number[] = [];
+        if (current >= 0 && steps > 1) {
+          for (let i = 1; i < steps; i++) {
+            passed.push(((current + i) % cellCount + cellCount) % cellCount);
+          }
+        }
+
+        this.gameState.tokenPositions[tokenId] = nextIndex;
+        const landedCell = cells[nextIndex];
+        this.addEventLog(`${token?.name ?? tokenId} 移動 ${steps > 0 ? '+' : ''}${steps} 格，落在「${landedCell?.name ?? `格子${nextIndex}`}」（index ${nextIndex}）`);
+
+        // 記錄落地資訊，供 onTokenLand 規則使用
+        this.gameState.lastLandedCell = { tokenId, cellIndex: nextIndex };
+
+        // 先觸發 onPass（經過的格子）
+        for (const passIdx of passed) {
+          const passCell = cells[passIdx];
+          if (passCell?.events) {
+            for (const evt of passCell.events) {
+              if (evt.trigger === 'onPass') this.executeGameAction(evt.action);
+            }
+          }
+        }
+
+        // 觸發落地格子的 CellEvent（onLand）
+        if (landedCell?.events) {
+          for (const evt of landedCell.events) {
+            if (evt.trigger === 'onLand') this.executeGameAction(evt.action);
+          }
+        }
+
+        // 觸發 onTokenLand 規則（開發者在規則編輯器定義的規則）
+        this.triggerRules('onTokenLand');
+        break;
+      }
+      case 'setVariable': {
+        const { variableId, value = 0 } = params;
+        const v = this.gameState.module.variables?.find(v => v.id === variableId);
+        this.gameState.variablesState[variableId] = value;
+        this.addEventLog(`設定變數「${v?.name ?? variableId}」= ${value}`);
+        break;
+      }
+      case 'addVariable': {
+        const { variableId, amount = 1 } = params;
+        const v = this.gameState.module.variables?.find(v => v.id === variableId);
+        const prev = this.gameState.variablesState[variableId] ?? 0;
+        this.gameState.variablesState[variableId] = prev + amount;
+        this.addEventLog(`變數「${v?.name ?? variableId}」${amount >= 0 ? '+' : ''}${amount}（現在：${prev + amount}）`);
         break;
       }
       default:
@@ -192,6 +264,26 @@ export class RuleEngine {
 
   private evaluateCondition(condition: Condition): boolean {
     switch (condition.type) {
+      case 'and': {
+        const conditions: Condition[] = condition.conditions ?? [];
+        return conditions.every(c => this.evaluateCondition(c));
+      }
+      case 'or': {
+        const conditions: Condition[] = condition.conditions ?? [];
+        return conditions.some(c => this.evaluateCondition(c));
+      }
+      case 'hasVariable': {
+        const { variableId, amount = 0, operator = '>=' } = condition;
+        const val = this.gameState.variablesState[variableId] ?? 0;
+        switch (operator) {
+          case '>=':  return val >= amount;
+          case '>':   return val >  amount;
+          case '<=':  return val <= amount;
+          case '<':   return val <  amount;
+          case '===': return val === amount;
+          default:    return false;
+        }
+      }
       case 'hasTokenCount': {
         const count = this.gameState.currentPlayer.tokens.filter(t => t === condition.tokenId).length;
         return count >= (condition.count ?? 1);
@@ -236,10 +328,27 @@ export class RuleEngine {
           return itemGridX === gridX && itemGridY === gridY;
         });
       }
+      case 'tokenAtCellIndex': {
+        // 格子序列：token 是否在第 N 格
+        const { tokenId: tId1, cellIndex } = condition;
+        return (this.gameState.tokenPositions[tId1 as string] ?? -1) === cellIndex;
+      }
+      case 'tokenOnCellType': {
+        // 格子序列：token 是否落在某類型的格子
+        const { tokenId: tId2, cellType } = condition;
+        const tokenId = tId2 as string;
+        const idx = this.gameState.tokenPositions[tokenId] ?? -1;
+        if (idx < 0) return false;
+        const cell = (this.gameState.module.boardConfig?.cells ?? [])[idx];
+        return cell?.type === cellType;
+      }
       default:
         return false;
     }
   }
+
+  private triggerChainDepth = 0;
+  private readonly MAX_CHAIN_DEPTH = 5;
 
   private executeGameAction(action: GameAction): void {
     switch (action.type) {
@@ -293,6 +402,39 @@ export class RuleEngine {
         }
         break;
       }
+      case 'setVariable': {
+        const v = this.gameState.module.variables?.find(v => v.id === action.variableId);
+        const val = action.value ?? 0;
+        this.gameState.variablesState[action.variableId!] = val;
+        this.addEventLog(`設定變數「${v?.name ?? action.variableId}」= ${val}`);
+        break;
+      }
+      case 'addVariable': {
+        const v = this.gameState.module.variables?.find(v => v.id === action.variableId);
+        const prev = this.gameState.variablesState[action.variableId!] ?? 0;
+        const amt = action.amount ?? 1;
+        this.gameState.variablesState[action.variableId!] = prev + amt;
+        this.addEventLog(`變數「${v?.name ?? action.variableId}」${amt >= 0 ? '+' : ''}${amt}（現在：${prev + amt}）`);
+        break;
+      }
+      case 'triggerRule': {
+        if (this.triggerChainDepth >= this.MAX_CHAIN_DEPTH) {
+          this.addEventLog('警告：觸發鏈深度超過上限，已停止');
+          break;
+        }
+        const rule = this.gameState.module.rules.find(r => r.id === action.ruleId);
+        if (!rule) {
+          this.addEventLog(`觸發鏈：找不到規則 ${action.ruleId}`);
+          break;
+        }
+        this.addEventLog(`觸發鏈：執行規則「${rule.id}」`);
+        this.triggerChainDepth++;
+        if (this.evaluateCondition(rule.condition)) {
+          this.executeGameAction(rule.action);
+        }
+        this.triggerChainDepth--;
+        break;
+      }
       default:
         this.addEventLog(`執行規則動作：${action.type}`);
     }
@@ -324,6 +466,10 @@ export class RuleEngine {
     for (const pile of module.piles ?? []) {
       pilesState[pile.id] = [...pile.cards];
     }
+    const variablesState: Record<string, number> = {};
+    for (const v of module.variables ?? []) {
+      variablesState[v.id] = v.defaultValue;
+    }
     this.gameState = {
       module,
       currentPlayer: module.players.find((p: Player) => p.id === module.turn.currentPlayerId)!,
@@ -337,7 +483,27 @@ export class RuleEngine {
       turnHistory: [],
       currentTurnActions: [],
       pilesState,
+      variablesState,
+      tokenPositions: {},
     };
     this.addEventLog('遊戲重新開始');
+  }
+
+  /** 載入快照（用於 rewind） */
+  public loadState(snapshot: GameState): void {
+    this.gameState = JSON.parse(JSON.stringify(snapshot));
+  }
+
+  /** 直接修改玩家狀態（測試用） */
+  public patchPlayer(playerId: string, patch: { score?: number; tokens?: string[] }): void {
+    const player = this.gameState.module.players.find(p => p.id === playerId);
+    if (!player) return;
+    if (patch.score !== undefined) player.score = patch.score;
+    if (patch.tokens !== undefined) player.tokens = [...patch.tokens];
+    // 同步 currentPlayer 參照
+    if (this.gameState.currentPlayer.id === playerId) {
+      this.gameState.currentPlayer = player;
+    }
+    this.addEventLog(`（測試）修改玩家「${player.name}」狀態`);
   }
 }
