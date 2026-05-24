@@ -385,10 +385,10 @@ const App: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
                     activeTab === tab.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
                   }`}
                 >
                   {tab.label}
