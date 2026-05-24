@@ -1,6 +1,6 @@
 # CapyBoard — Project Status
 
-> 最後更新：2026-04-26
+> 最後更新：2026-05-24
 
 ## 專案概況
 桌遊設計工具，使用者可在瀏覽器中設計、編輯並試玩自製桌遊模組。
@@ -17,8 +17,8 @@
 ## 目前待做（下一步）
 專案 M1–M4 已全部完成，目前處於 **demo-ready** 階段。後續工作為：
 
-1. 部署相關人工操作（見 [HUMAN_TODO.md](HUMAN_TODO.md) 部署相關章節）
-2. 瀏覽器端手動驗收（見 [HUMAN_TODO.md](HUMAN_TODO.md) 功能測試章節）
+1. 部署相關人工操作 — GitHub repo 已建立並 push（https://github.com/ChunkangYang/CapyBoard）；尚需手動啟用 GitHub Pages（Settings → Pages → Deploy from gh-pages branch）或 Vercel
+2. 瀏覽器端自動化驗收 — 已由 Playwright 跑完 A–I 大部分（見 [EVIDENCES/TEST_REPORT_2026-05-24.md](EVIDENCES/TEST_REPORT_2026-05-24.md)）；剩餘需人工：拖拉互動、淘金熱完整流程、格子序列完整流程、手機響應式
 3. 視使用者回饋進行優化（記錄到 [IMPROVE.md](IMPROVE.md) 或 [BUG.md](BUG.md)）
 4. 已知延後項目：
    - Sprint 14 效能優化（大量 token、複雜規則）— 有需求再處理

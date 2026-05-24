@@ -139,11 +139,12 @@ const App: React.FC = () => {
   // 第一次載入：若 localStorage 為空，預置範例遊戲
   useEffect(() => {
     if (!hasAnyModules()) {
+      const base = Date.now();
       const defaults: Array<[string, GameModule]> = [
-        [generateModuleId(), demoGame as GameModule],
-        [generateModuleId(), exampleResource as GameModule],
-        [generateModuleId(), exampleCards as GameModule],
-        [generateModuleId(), exampleDice as GameModule],
+        [`module_${base}`, demoGame as GameModule],
+        [`module_${base + 1}`, exampleResource as GameModule],
+        [`module_${base + 2}`, exampleCards as GameModule],
+        [`module_${base + 3}`, exampleDice as GameModule],
       ];
       defaults.forEach(([id, mod]) => saveModule(id, mod));
       setModules(getAllModules());
