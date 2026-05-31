@@ -5,6 +5,7 @@ interface TooltipProps {
   children: React.ReactElement;
   side?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
+  className?: string;
 }
 
 export const Tooltip: React.FC<TooltipProps> = ({
@@ -12,6 +13,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   children,
   side = 'top',
   delay = 400,
+  className = '',
 }) => {
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -32,7 +34,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   };
 
   return (
-    <span className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
+    <span className={`relative inline-flex ${className}`} onMouseEnter={show} onMouseLeave={hide}>
       {children}
       {visible && (
         <span

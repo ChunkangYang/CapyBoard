@@ -1061,9 +1061,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
               cells:     '設定格子序列（棋盤路徑）',
             };
             return (
-              <Tooltip key={tab.id} content={tips[tab.id]} side="bottom">
+              <Tooltip key={tab.id} content={tips[tab.id]} side="bottom" className="flex-1 min-w-0">
                 <button
-                  className="flex-1 min-w-0 py-3 text-[13px] font-semibold transition-all flex flex-col items-center justify-center gap-1.5 rounded-t-lg"
+                  className="w-full py-3 text-[13px] font-semibold transition-all flex flex-col items-center justify-center gap-1.5 rounded-t-lg"
                   style={leftTab === tab.id ? {
                     color: '#E09B3D',
                     background: '#FFFDF8',
