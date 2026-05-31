@@ -1039,21 +1039,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   const isActionSelected = selectedAction && leftTab === 'actions';
 
   const LEFT_TABS = [
-    { id: 'tokens'    as const, label: '元件', icon: <Layout className="w-3.5 h-3.5" /> },
-    { id: 'actions'   as const, label: '動作', icon: <Zap className="w-3.5 h-3.5" /> },
-    { id: 'players'   as const, label: '玩家', icon: <Users className="w-3.5 h-3.5" /> },
-    { id: 'variables' as const, label: '變數', icon: <Variable className="w-3.5 h-3.5" /> },
-    { id: 'cells'     as const, label: '格子', icon: <Map className="w-3.5 h-3.5" /> },
+    { id: 'tokens'    as const, label: '元件', icon: <Layout className="w-5 h-5" /> },
+    { id: 'actions'   as const, label: '動作', icon: <Zap className="w-5 h-5" /> },
+    { id: 'players'   as const, label: '玩家', icon: <Users className="w-5 h-5" /> },
+    { id: 'variables' as const, label: '變數', icon: <Variable className="w-5 h-5" /> },
+    { id: 'cells'     as const, label: '格子', icon: <Map className="w-5 h-5" /> },
   ];
-
-  const tabCountBadge = (tabId: typeof leftTab): number | null => {
-    if (tabId === 'tokens') return gameModule.tokens.length || null;
-    if (tabId === 'actions') return gameModule.actions.length || null;
-    if (tabId === 'players') return gameModule.players.length || null;
-    if (tabId === 'variables') return (gameModule.variables?.length) || null;
-    if (tabId === 'cells') return (gameModule.boardConfig?.cells?.length) || null;
-    return null;
-  };
 
   return (
     <div className="flex h-screen" style={{ background: '#FBF6EC' }}>
@@ -1069,11 +1060,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
               variables: '自訂遊戲變數（血量、魔力等）',
               cells:     '設定格子序列（棋盤路徑）',
             };
-            const count = tabCountBadge(tab.id);
             return (
               <Tooltip key={tab.id} content={tips[tab.id]} side="bottom">
                 <button
-                  className="flex-1 min-w-0 py-2.5 text-[11px] font-semibold transition-all flex flex-col items-center justify-center gap-1 relative rounded-t-lg"
+                  className="flex-1 min-w-0 py-3 text-[13px] font-semibold transition-all flex flex-col items-center justify-center gap-1.5 rounded-t-lg"
                   style={leftTab === tab.id ? {
                     color: '#E09B3D',
                     background: '#FFFDF8',
@@ -1083,14 +1073,6 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                 >
                   {tab.icon}
                   <span className="leading-none">{tab.label}</span>
-                  {count !== null && (
-                    <span
-                      className="absolute top-1 right-1 min-w-[15px] h-[15px] text-[9px] rounded-full flex items-center justify-center px-1 leading-none font-bold"
-                      style={{ background: '#F9E3BC', color: '#B07A28' }}
-                    >
-                      {count}
-                    </span>
-                  )}
                 </button>
               </Tooltip>
             );
