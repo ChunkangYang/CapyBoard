@@ -45,6 +45,70 @@ const DEFAULT_BOARD_CONFIG: BoardConfig = {
   showGrid: true,
 };
 
+// ─── Chip palette ─────────────────────────────────────────────────────────────
+// 溫馨家庭風配色：以暖色系蠟筆色取代賭場的紅黑綠，但保留籌碼的內外圈造型。
+type ChipPalette = { base: string; light: string; dark: string; spot: string; text: string };
+
+const CHIP_PALETTES: Record<Token['type'], ChipPalette> = {
+  resource: { base: '#F4B860', light: '#FBD08A', dark: '#E09B3D', spot: '#FFF7E8', text: '#7A4E12' }, // 蜂蜜橘
+  card:     { base: '#EF8E72', light: '#F7AE97', dark: '#D96E50', spot: '#FFF1EC', text: '#7E3322' }, // 蜜桃珊瑚
+  dice:     { base: '#8FBF9F', light: '#B0D6BC', dark: '#6FA582', spot: '#EFFAF1', text: '#2F5C3E' }, // 抹茶綠
+  custom:   { base: '#B89FD4', light: '#D0BCE6', dark: '#9A7CC0', spot: '#F5EFFB', text: '#4C357A' }, // 薰衣草紫
+};
+
+const chipPaletteFor = (token: Token): ChipPalette =>
+  CHIP_PALETTES[token.type] ?? CHIP_PALETTES.custom;
+
+/** 賭場籌碼造型元件：外圈邊點 + 內圈虛線環 + 中心符號 / emoji。 */
+const TokenChip: React.FC<{
+  token: Token;
+  size?: number;
+  selected?: boolean;
+  dragging?: boolean;
+}> = ({ token, size = 56, selected = false, dragging = false }) => {
+  const c = chipPaletteFor(token);
+  const center = token.icon?.trim() || token.name?.trim()?.[0] || '?';
+
+  return (
+    <div
+      className="relative shrink-0 transition-transform duration-150"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        // 外圈交錯邊點（白色蠟筆點）營造籌碼鋸齒
+        background: `repeating-conic-gradient(from 0deg, ${c.base} 0deg 23deg, ${c.spot} 23deg 36deg)`,
+        boxShadow: selected
+          ? `0 0 0 3px ${c.dark}, 0 6px 14px rgba(0,0,0,0.18)`
+          : '0 3px 8px rgba(120,80,30,0.22)',
+        opacity: dragging ? 0.45 : 1,
+        transform: selected ? 'scale(1.06)' : undefined,
+      }}
+    >
+      {/* 內圈面盤 */}
+      <div
+        className="absolute flex items-center justify-center rounded-full"
+        style={{
+          inset: '14%',
+          background: `radial-gradient(circle at 35% 30%, ${c.light}, ${c.base} 70%)`,
+          border: `${Math.max(2, size * 0.045)}px dashed ${c.spot}`,
+          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.18)',
+          color: c.text,
+          fontSize: size * 0.42,
+          lineHeight: 1,
+        }}
+      >
+        <span style={{ filter: 'drop-shadow(0 1px 0 rgba(255,255,255,0.5))' }}>{center}</span>
+      </div>
+      {/* 光澤高光，立體硬幣感 */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 32% 26%, rgba(255,255,255,0.55), rgba(255,255,255,0) 55%)' }}
+      />
+    </div>
+  );
+};
+
 // ─── Draggable token chip ─────────────────────────────────────────────────────
 const DraggableToken: React.FC<{
   token: Token;
@@ -56,20 +120,28 @@ const DraggableToken: React.FC<{
     item: () => createDragItem('token', token.id, token.name),
     collect: (monitor) => ({ isDragging: monitor.isDragging() }),
   });
+  const c = chipPaletteFor(token);
 
   return (
     <div
       ref={drag}
-      className={`flex-1 p-2 border rounded cursor-move transition-colors text-sm ${
-        isDragging ? 'opacity-50' : ''
-      } ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-yellow-50 hover:bg-yellow-100 border-gray-200'}`}
+      className={`group flex-1 flex items-center gap-3 p-2 rounded-2xl cursor-grab active:cursor-grabbing transition-all ${
+        isDragging ? 'opacity-50' : 'hover:-translate-y-0.5'
+      }`}
+      style={{
+        background: isSelected ? c.spot : '#FFFDF8',
+        border: `2px solid ${isSelected ? c.base : '#F0E6D6'}`,
+        boxShadow: isSelected ? `0 4px 10px ${c.base}55` : '0 1px 3px rgba(120,80,30,0.08)',
+      }}
       onClick={(e) => { e.stopPropagation(); onSelect(token); }}
     >
-      <div className="font-medium truncate flex items-center gap-1">
-        {token.icon && <span>{token.icon}</span>}
-        {token.name}
+      <TokenChip token={token} size={44} dragging={isDragging} />
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold truncate text-sm" style={{ color: '#5C4A33' }}>{token.name}</div>
+        <div className="text-xs" style={{ color: c.dark }}>
+          {token.type === 'resource' ? '資源' : token.type === 'card' ? '卡片' : token.type === 'dice' ? '骰子' : '自訂'}
+        </div>
       </div>
-      <div className="text-xs text-gray-500">{token.type}</div>
     </div>
   );
 };
@@ -135,19 +207,23 @@ const DroppableWorkspace: React.FC<{
 
       {boardItems.map((item) => {
         const token = tokens.find(t => t.id === item.id);
+        if (!token) return null;
         return (
           <div
             key={item.instanceId}
-            className="absolute cursor-pointer p-2 bg-white border border-gray-300 rounded shadow-sm hover:shadow-md transition-shadow group select-none"
-            style={{ left: item.position.x, top: item.position.y, minWidth: '64px' }}
+            className="absolute cursor-pointer group select-none flex flex-col items-center transition-transform hover:-translate-y-0.5"
+            style={{ left: item.position.x, top: item.position.y }}
             onClick={() => onItemClick(item)}
           >
-            <div className="text-sm font-medium text-center">
-              {token?.icon && <span className="mr-1">{token.icon}</span>}
-              {token?.name ?? item.id}
-            </div>
+            <TokenChip token={token} size={64} />
+            <span
+              className="mt-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap"
+              style={{ background: '#FFFDF8', color: '#5C4A33', boxShadow: '0 1px 2px rgba(120,80,30,0.12)' }}
+            >
+              {token.name}
+            </span>
             <button
-              className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center leading-none"
+              className="absolute -top-2 -right-2 w-5 h-5 bg-rose-400 hover:bg-rose-500 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center leading-none shadow"
               onClick={(e) => { e.stopPropagation(); onItemRemove(item.instanceId); }}
             >×</button>
           </div>
@@ -1234,6 +1310,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
               </div>
             ) : selectedToken ? (
               <div className="space-y-3">
+                <div className="flex justify-center py-2">
+                  <TokenChip token={selectedToken} size={80} />
+                </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5">名稱</label>
                   <input
