@@ -153,8 +153,10 @@ const DroppableWorkspace: React.FC<{
   tokens: Token[];
   onItemClick: (item: BoardItem) => void;
   onItemRemove: (instanceId: string) => void;
+  onItemMove: (instanceId: string, position: { x: number; y: number }) => void;
+  onResizeBoard: (width: number, height: number) => void;
   boardConfig: BoardConfig;
-}> = ({ onDrop, boardItems, tokens, onItemClick, onItemRemove, boardConfig }) => {
+}> = ({ onDrop, boardItems, tokens, onItemClick, onItemRemove, onItemMove, onResizeBoard, boardConfig }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [{ isOver }, drop] = useDrop({
@@ -174,6 +176,60 @@ const DroppableWorkspace: React.FC<{
   const setRef = (node: HTMLDivElement | null) => {
     drop(node);
     containerRef.current = node;
+  };
+
+  // 已放置元件：按住拖曳移動
+  const dragStateRef = useRef<{ instanceId: string; moved: boolean } | null>(null);
+  const onItemPointerDown = (e: React.PointerEvent, instanceId: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    dragStateRef.current = { instanceId, moved: false };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+  const onItemPointerMove = (e: React.PointerEvent) => {
+    const st = dragStateRef.current;
+    const node = containerRef.current;
+    if (!st || !node) return;
+    st.moved = true;
+    const rect = node.getBoundingClientRect();
+    const snapped = snapToGrid({ x: e.clientX - rect.left, y: e.clientY - rect.top }, boardConfig.gridSize);
+    const pos = {
+      x: Math.max(0, Math.min(snapped.x, boardConfig.width)),
+      y: Math.max(0, Math.min(snapped.y, boardConfig.height)),
+    };
+    onItemMove(st.instanceId, pos);
+  };
+  const onItemPointerUp = (e: React.PointerEvent) => {
+    if (!dragStateRef.current) return;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  };
+  const onItemClickGuarded = (e: React.MouseEvent, item: BoardItem) => {
+    e.stopPropagation();
+    const moved = dragStateRef.current?.moved;
+    dragStateRef.current = null;
+    if (!moved) onItemClick(item);
+  };
+
+  // 棋盤右下角把手：拖曳縮放
+  const resizeRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const onResizeDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    resizeRef.current = { x: e.clientX, y: e.clientY, w: boardConfig.width, h: boardConfig.height };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    const r = resizeRef.current;
+    if (!r) return;
+    const g = boardConfig.gridSize || 40;
+    const w = Math.max(g * 4, Math.round((r.w + (e.clientX - r.x)) / g) * g);
+    const h = Math.max(g * 4, Math.round((r.h + (e.clientY - r.y)) / g) * g);
+    onResizeBoard(w, h);
+  };
+  const onResizeUp = (e: React.PointerEvent) => {
+    if (!resizeRef.current) return;
+    resizeRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   };
 
   const bgColor = boardConfig.backgroundColor ?? '#ffffff';
@@ -209,9 +265,13 @@ const DroppableWorkspace: React.FC<{
         return (
           <div
             key={item.instanceId}
-            className="absolute cursor-pointer group select-none flex flex-col items-center transition-transform hover:-translate-y-0.5"
-            style={{ left: item.position.x, top: item.position.y }}
-            onClick={() => onItemClick(item)}
+            className="absolute group select-none flex flex-col items-center"
+            style={{ left: item.position.x, top: item.position.y, cursor: 'grab', touchAction: 'none' }}
+            onDragStart={(e) => e.preventDefault()}
+            onPointerDown={(e) => onItemPointerDown(e, item.instanceId)}
+            onPointerMove={onItemPointerMove}
+            onPointerUp={onItemPointerUp}
+            onClick={(e) => onItemClickGuarded(e, item)}
           >
             <TokenChip token={token} size={64} />
             <span
@@ -227,6 +287,21 @@ const DroppableWorkspace: React.FC<{
           </div>
         );
       })}
+      {/* 縮放把手（右下角拖曳調整棋盤大小） */}
+      <div
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeUp}
+        onClick={(e) => e.stopPropagation()}
+        title="拖曳調整棋盤大小"
+        className="absolute bottom-0 right-0 w-5 h-5 z-10"
+        style={{
+          cursor: 'nwse-resize',
+          touchAction: 'none',
+          background: 'linear-gradient(135deg, transparent 45%, #E09B3D 45%)',
+          borderRadius: '0 0 10px 0',
+        }}
+      />
     </div>
   );
 };
@@ -1035,6 +1110,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
     onGameModuleChange({ ...gameModule, boardConfig: config });
   };
 
+  const handleItemMove = (instanceId: string, position: { x: number; y: number }) => {
+    setBoardItems(prev => prev.map(i => (i.instanceId === instanceId ? { ...i, position } : i)));
+  };
+
+  const handleResizeBoard = (width: number, height: number) => {
+    updateBoardConfig({ ...boardConfig, width, height });
+  };
+
   // ── right panel content ──
   const isActionSelected = selectedAction && leftTab === 'actions';
 
@@ -1227,6 +1310,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             tokens={gameModule.tokens}
             onItemClick={handleItemClick}
             onItemRemove={handleItemRemove}
+            onItemMove={handleItemMove}
+            onResizeBoard={handleResizeBoard}
             boardConfig={boardConfig}
           />
         </div>
