@@ -10,19 +10,19 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --primary: 36 87% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 39 50% 92%;
+    --secondary-foreground: 33 28% 28%;
+    --muted: 39 40% 94%;
+    --muted-foreground: 30 14% 55%;
+    --accent: 39 50% 92%;
+    --accent-foreground: 33 28% 28%;
+    --destructive: 351 85% 73%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 35% 89%;
+    --input: 36 35% 89%;
+    --ring: 36 87% 67%;
     --radius: 0.5rem;
   }
 
@@ -69,8 +69,8 @@
 }
 
 .drop-zone.drag-over {
-  background-color: rgba(59, 130, 246, 0.1);
-  border-color: rgb(59, 130, 246);
+  background-color: rgba(244, 184, 96, 0.15);
+  border-color: rgb(224, 155, 61);
 }
 
 /* 遊戲元件樣式 */

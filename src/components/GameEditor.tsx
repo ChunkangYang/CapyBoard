@@ -189,14 +189,12 @@ const DroppableWorkspace: React.FC<{
   return (
     <div
       ref={setRef}
-      className={`relative border-2 rounded-lg transition-colors overflow-hidden ${
-        isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
-      }`}
+      className="relative border-2 rounded-xl transition-colors overflow-hidden"
       style={{
         width: boardConfig.width,
         height: boardConfig.height,
         ...gridStyle,
-        borderColor: isOver ? '#3b82f6' : '#d1d5db',
+        borderColor: isOver ? '#E09B3D' : '#EAD9BF',
       }}
     >
       {boardItems.length === 0 && (
@@ -1058,11 +1056,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen" style={{ background: '#FBF6EC' }}>
       {/* ── 左側面板 ── */}
-      <div className="bg-white border-r flex flex-col shrink-0" style={{ width: sidebarWidth }}>
+      <div className="flex flex-col shrink-0" style={{ width: sidebarWidth, background: '#FFFDF8', borderRight: '1px solid #F0E6D6' }}>
         {/* tabs */}
-        <div className="flex border-b bg-gray-50">
+        <div className="flex" style={{ background: '#F6EEDF', borderBottom: '1px solid #F0E6D6' }}>
           {LEFT_TABS.map(tab => {
             const tips: Record<string, string> = {
               tokens:    '管理遊戲元件（Token）：資源、卡牌、棋子',
@@ -1075,18 +1073,22 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             return (
               <Tooltip key={tab.id} content={tips[tab.id]} side="bottom">
                 <button
-                  className={`flex-1 py-3 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-1 relative ${
-                    leftTab === tab.id
-                      ? 'text-blue-600 bg-white border-b-2 border-blue-500'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className="flex-1 py-3 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-1 relative"
+                  style={leftTab === tab.id ? {
+                    color: '#E09B3D',
+                    background: '#FFFDF8',
+                    borderBottom: '2px solid #F4B860',
+                  } : { color: '#A1907A', background: 'transparent' }}
                   onClick={() => setLeftTab(tab.id)}
                 >
                   {tab.icon}
                   <span className="flex items-center gap-0.5">
                     {tab.label}
                     {count !== null && (
-                      <span className="min-w-[16px] h-4 bg-blue-100 text-blue-600 text-[9px] rounded-full flex items-center justify-center px-1 leading-none font-bold">
+                      <span
+                        className="min-w-[16px] h-4 text-[9px] rounded-full flex items-center justify-center px-1 leading-none font-bold"
+                        style={{ background: '#F9E3BC', color: '#B07A28' }}
+                      >
                         {count}
                       </span>
                     )}
@@ -1213,18 +1215,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                 />
               </div>
             </Tooltip>
-            <Button
-              variant={showBoardConfig ? 'default' : 'outline'}
-              size="sm"
+            <button
               onClick={() => setShowBoardConfig(v => !v)}
+              className="flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5"
+              style={showBoardConfig
+                ? { background: '#F4B860', color: '#fff', boxShadow: '0 2px 6px rgba(224,155,61,0.45)' }
+                : { background: '#FFFFFF', color: '#5C4A33', border: '1.5px solid #F0E6D6' }}
             >
               <Grid className="w-4 h-4 mr-1" />
               棋盤設定
-            </Button>
-            <Button onClick={() => downloadGameModule(gameModule, 'game_module.json')}>
+            </button>
+            <button
+              onClick={() => downloadGameModule(gameModule, 'game_module.json')}
+              className="flex items-center px-3 py-1.5 rounded-full text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+              style={{ background: '#F4B860', boxShadow: '0 2px 8px rgba(224,155,61,0.5)' }}
+            >
               <Save className="w-4 h-4 mr-2" />
               匯出 JSON
-            </Button>
+            </button>
           </div>
         </div>
 

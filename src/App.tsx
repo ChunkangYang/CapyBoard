@@ -341,85 +341,94 @@ const App: React.FC = () => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen flex flex-col" style={{ background: '#FBF6EC' }}>
         {/* 頂部導覽列 */}
-        <header className="bg-white border-b shadow-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-2 flex items-center gap-3">
+        <header
+          className="sticky top-0 z-10"
+          style={{ background: '#FFFDF8', borderBottom: '1px solid #F0E6D6', boxShadow: '0 1px 6px rgba(120,80,30,0.06)' }}
+        >
+          <div className="container mx-auto px-4 py-2.5 flex items-center gap-2">
             {/* 返回 */}
-            <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1 text-gray-600">
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5"
+              style={{ color: '#5C4A33', background: '#F6EEDF' }}
+            >
               <ArrowLeft className="w-4 h-4" /> 首頁
-            </Button>
+            </button>
 
-            <div className="h-5 border-l border-gray-200" />
+            <div className="h-5 mx-1" style={{ borderLeft: '1px solid #EDE3D3' }} />
 
             {/* Undo / Redo */}
             {view === 'edit' && (
               <>
                 <Tooltip content="復原 (Ctrl+Z)" side="bottom">
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
                     onClick={handleUndo}
                     disabled={!canUndo}
+                    className="p-2 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F6EEDF]"
+                    style={{ color: '#5C4A33' }}
                   >
                     <Undo2 className="w-4 h-4" />
-                  </Button>
+                  </button>
                 </Tooltip>
                 <Tooltip content="重做 (Ctrl+Y)" side="bottom">
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
                     onClick={handleRedo}
                     disabled={!canRedo}
+                    className="p-2 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F6EEDF]"
+                    style={{ color: '#5C4A33' }}
                   >
                     <Redo2 className="w-4 h-4" />
-                  </Button>
+                  </button>
                 </Tooltip>
-                <div className="h-5 border-l border-gray-200" />
+                <div className="h-5 mx-1" style={{ borderLeft: '1px solid #EDE3D3' }} />
               </>
             )}
 
             {/* Tab 切換 */}
-            <nav className="flex gap-1">
-              {EDIT_TABS.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <nav className="flex gap-1 p-1 rounded-full" style={{ background: '#F6EEDF' }}>
+              {EDIT_TABS.map(tab => {
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+                    style={active ? {
+                      background: '#F4B860',
+                      color: '#FFFFFF',
+                      boxShadow: '0 2px 6px rgba(224,155,61,0.45)',
+                    } : { color: '#8A745A', background: 'transparent' }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </nav>
 
             {/* 快速測試（編輯模式限定） */}
             {view === 'edit' && activeTab !== 'board' && (
               <Tooltip content="不切換頁籤，在右側面板快速試玩" side="bottom">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                <button
                   onClick={handleOpenQuickTest}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5"
+                  style={{ color: '#E09B3D', background: '#FFFFFF', border: '1.5px solid #F4D7A1' }}
                 >
                   <Zap className="w-4 h-4" /> 快速測試
-                </Button>
+                </button>
               </Tooltip>
             )}
 
             {/* 匯出 JSON */}
             <Tooltip content="將遊戲模組匯出為 JSON 檔案" side="bottom">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto gap-1 text-gray-600"
+              <button
                 onClick={() => downloadGameModule(currentModule, `${currentModule.gameName.zh}.json`)}
+                className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5 hover:bg-[#F6EEDF]"
+                style={{ color: '#5C4A33' }}
               >
                 <Download className="w-4 h-4" /> 匯出
-              </Button>
+              </button>
             </Tooltip>
           </div>
         </header>
