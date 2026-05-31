@@ -1060,7 +1060,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
       {/* ── 左側面板 ── */}
       <div className="flex flex-col shrink-0" style={{ width: sidebarWidth, background: '#FFFDF8', borderRight: '1px solid #F0E6D6' }}>
         {/* tabs */}
-        <div className="flex" style={{ background: '#F6EEDF', borderBottom: '1px solid #F0E6D6' }}>
+        <div className="flex gap-1 px-1 pt-1" style={{ background: '#F6EEDF', borderBottom: '1px solid #F0E6D6' }}>
           {LEFT_TABS.map(tab => {
             const tips: Record<string, string> = {
               tokens:    '管理遊戲元件（Token）：資源、卡牌、棋子',
@@ -1073,7 +1073,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             return (
               <Tooltip key={tab.id} content={tips[tab.id]} side="bottom">
                 <button
-                  className="flex-1 py-3 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-1 relative"
+                  className="flex-1 min-w-0 py-2.5 text-[11px] font-semibold transition-all flex flex-col items-center justify-center gap-1 relative rounded-t-lg"
                   style={leftTab === tab.id ? {
                     color: '#E09B3D',
                     background: '#FFFDF8',
@@ -1082,17 +1082,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                   onClick={() => setLeftTab(tab.id)}
                 >
                   {tab.icon}
-                  <span className="flex items-center gap-0.5">
-                    {tab.label}
-                    {count !== null && (
-                      <span
-                        className="min-w-[16px] h-4 text-[9px] rounded-full flex items-center justify-center px-1 leading-none font-bold"
-                        style={{ background: '#F9E3BC', color: '#B07A28' }}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </span>
+                  <span className="leading-none">{tab.label}</span>
+                  {count !== null && (
+                    <span
+                      className="absolute top-1 right-1 min-w-[15px] h-[15px] text-[9px] rounded-full flex items-center justify-center px-1 leading-none font-bold"
+                      style={{ background: '#F9E3BC', color: '#B07A28' }}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               </Tooltip>
             );
