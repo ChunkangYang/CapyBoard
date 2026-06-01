@@ -116,6 +116,17 @@ export interface CardPile {
   cards: string[];   // tokenId 列表（可重複）
 }
 
+/** 垃圾桶項目：被刪除的東西暫存於此，可還原或永久清空 */
+export type TrashKind = 'token' | 'action' | 'player' | 'variable' | 'cell' | 'boardItem';
+
+export interface TrashItem {
+  trashId: string;
+  kind: TrashKind;
+  label: string;       // 顯示名稱
+  payload: any;        // 還原所需資料
+  deletedAt: string;   // ISO 時間
+}
+
 export interface GameModule {
   gameName: GameName;
   players: Player[];
@@ -128,6 +139,7 @@ export interface GameModule {
   piles?: CardPile[];
   variables?: GameVariable[];
   theme?: BoardTheme;
+  trash?: TrashItem[];
 }
 
 export interface TurnRecord {

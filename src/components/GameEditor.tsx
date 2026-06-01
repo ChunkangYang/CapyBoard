@@ -1,16 +1,164 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Button } from './ui/button';
-import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable, BoardCell, CellTemplateType, CellEvent } from '../engine/types';
+import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable, BoardCell, CellTemplateType, CellEvent, TrashItem, TrashKind } from '../engine/types';
 import { createDragItem, createBoardItem, calculateDropPosition, snapToGrid } from '../utils/dragDropHelpers';
 import { downloadGameModule } from '../utils/jsonLoader';
-import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable, Map, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable, Map, ChevronRight, ChevronLeft, Trash, RotateCcw, X } from 'lucide-react';
 import { Tooltip } from './ui/tooltip';
 
 interface GameEditorProps {
   gameModule: GameModule;
   onGameModuleChange: (module: GameModule) => void;
 }
+
+// ─── 垃圾桶 helpers（單一來源：刪除→進垃圾桶，可還原/清空） ──────────────────────
+/** 回傳「把一個被刪項目推入垃圾桶」後的新 trash 陣列（最新在前）。 */
+function pushToTrash(module: GameModule, kind: TrashKind, label: string, payload: any): TrashItem[] {
+  const item: TrashItem = {
+    trashId: `trash_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    kind,
+    label,
+    payload: JSON.parse(JSON.stringify(payload)),
+    deletedAt: new Date().toISOString(),
+  };
+  return [item, ...(module.trash ?? [])];
+}
+
+/** 從垃圾桶還原指定項目，回傳新的 GameModule。 */
+function restoreFromTrash(module: GameModule, trashId: string): GameModule {
+  const item = (module.trash ?? []).find(t => t.trashId === trashId);
+  if (!item) return module;
+  const rest = (module.trash ?? []).filter(t => t.trashId !== trashId);
+  const m: GameModule = { ...module, trash: rest };
+  switch (item.kind) {
+    case 'token':
+      if (m.tokens.some(t => t.id === item.payload.id)) return m;
+      return { ...m, tokens: [...m.tokens, item.payload] };
+    case 'action':
+      return { ...m, actions: [...m.actions, item.payload] };
+    case 'player':
+      return { ...m, players: [...m.players, item.payload] };
+    case 'variable':
+      return { ...m, variables: [...(m.variables ?? []), item.payload] };
+    case 'boardItem':
+      return { ...m, board: { items: [...(m.board?.items ?? []), item.payload] } };
+    case 'cell': {
+      const cells = [...(m.boardConfig?.cells ?? [])];
+      const at = Math.min(item.payload.index ?? cells.length, cells.length);
+      cells.splice(at, 0, item.payload);
+      const reindexed = cells.map((c, i) => ({ ...c, index: i }));
+      return { ...m, boardConfig: { ...(m.boardConfig as BoardConfig), cells: reindexed } };
+    }
+    default:
+      return m;
+  }
+}
+
+const TRASH_KIND_LABEL: Record<TrashKind, string> = {
+  token: '元件', action: '動作', player: '玩家', variable: '變數', cell: '格子', boardItem: '棋盤元件',
+};
+
+// ─── 垃圾桶面板（彈窗：逐項還原 + 一鍵清空） ───────────────────────────────────────
+const TrashPanel: React.FC<{
+  trash: TrashItem[];
+  onClose: () => void;
+  onRestore: (trashId: string) => void;
+  onEmpty: () => void;
+}> = ({ trash, onClose, onRestore, onEmpty }) => {
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(92,74,51,0.28)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-[420px] max-h-[80vh] flex flex-col rounded-2xl overflow-hidden"
+        style={{ background: '#FFFDF8', boxShadow: '0 12px 40px rgba(120,80,30,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #F0E6D6' }}>
+          <div className="flex items-center gap-2" style={{ color: '#5C4A33' }}>
+            <Trash className="w-5 h-5" style={{ color: '#EF8E72' }} />
+            <span className="font-semibold">垃圾桶</span>
+            <span className="text-xs" style={{ color: '#A1907A' }}>（{trash.length} 項）</span>
+          </div>
+          <button onClick={onClose} title="關閉" className="p-1 rounded-lg hover:bg-black/5" style={{ color: '#A1907A' }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3">
+          {trash.length === 0 ? (
+            <div className="text-center text-sm py-10" style={{ color: '#A1907A' }}>
+              垃圾桶是空的<br />
+              <span className="text-xs" style={{ color: '#C9BBA6' }}>刪除的項目會暫存在這裡，可隨時還原</span>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {trash.map(item => (
+                <div
+                  key={item.trashId}
+                  className="flex items-center gap-2 p-2 rounded-xl"
+                  style={{ background: '#FFFFFF', border: '1px solid #F0E6D6' }}
+                >
+                  <span
+                    className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                    style={{ background: '#F9E3BC', color: '#B07A28' }}
+                  >
+                    {TRASH_KIND_LABEL[item.kind]}
+                  </span>
+                  <span className="flex-1 min-w-0 truncate text-sm" style={{ color: '#5C4A33' }}>
+                    {item.label}
+                  </span>
+                  <button
+                    onClick={() => onRestore(item.trashId)}
+                    title="還原"
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all hover:-translate-y-0.5"
+                    style={{ background: '#8FBF9F', color: '#fff' }}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> 還原
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {trash.length > 0 && (
+          <div className="px-5 py-3" style={{ borderTop: '1px solid #F0E6D6' }}>
+            {confirmEmpty ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs" style={{ color: '#A1907A' }}>確定永久刪除全部？此動作無法復原</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmEmpty(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ background: '#FFFFFF', color: '#5C4A33', border: '1.5px solid #F0E6D6' }}
+                  >取消</button>
+                  <button
+                    onClick={() => { onEmpty(); setConfirmEmpty(false); }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                    style={{ background: '#fb7185' }}
+                  >確定清空</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmEmpty(true)}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{ background: '#FFFFFF', color: '#fb7185', border: '1.5px solid #fecdd3' }}
+              >
+                <Trash2 className="w-4 h-4" /> 清空垃圾桶
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ─── Action type metadata ─────────────────────────────────────────────────────
 const ACTION_TYPE_LABELS: Record<ActionType, string> = {
@@ -503,8 +651,13 @@ const CellsPanel: React.FC<{
   };
 
   const removeCell = (idx: number) => {
+    const removed = cells[idx];
     const next = cells.filter((_, i) => i !== idx).map((c, i) => ({ ...c, index: i }));
-    setCells(next);
+    onChange({
+      ...gameModule,
+      boardConfig: { ...cfg, cells: next },
+      trash: removed ? pushToTrash(gameModule, 'cell', `格子「${removed.name}」`, removed) : gameModule.trash,
+    });
   };
 
   const updateCell = (idx: number, patch: Partial<BoardCell>) => {
@@ -757,7 +910,13 @@ const VariablesPanel: React.FC<{
   };
 
   const removeVariable = (id: string) => {
-    onChange({ ...gameModule, variables: variables.filter(v => v.id !== id) });
+    const removed = variables.find(v => v.id === id);
+    if (!removed) return;
+    onChange({
+      ...gameModule,
+      variables: variables.filter(v => v.id !== id),
+      trash: pushToTrash(gameModule, 'variable', `變數「${removed.name}」`, removed),
+    });
   };
 
   return (
@@ -908,6 +1067,8 @@ const PlayersPanel: React.FC<{
 
   const removePlayer = (playerId: string) => {
     if (gameModule.players.length <= 1) return;
+    const removed = gameModule.players.find(p => p.id === playerId);
+    if (!removed) return;
     const newPlayers = gameModule.players.filter(p => p.id !== playerId);
     const newCurrentId = gameModule.turn.currentPlayerId === playerId
       ? newPlayers[0].id
@@ -916,6 +1077,7 @@ const PlayersPanel: React.FC<{
       ...gameModule,
       players: newPlayers,
       turn: { ...gameModule.turn, currentPlayerId: newCurrentId },
+      trash: pushToTrash(gameModule, 'player', `玩家「${removed.name}」`, removed),
     });
   };
 
@@ -1014,6 +1176,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [showBoardConfig, setShowBoardConfig] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const isResizingRef = useRef(false);
@@ -1062,7 +1225,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   };
 
   const handleItemRemove = (instanceId: string) => {
-    setBoardItems(prev => prev.filter(i => i.instanceId !== instanceId));
+    const removed = boardItems.find(i => i.instanceId === instanceId);
+    if (!removed) return;
+    const tokenName = gameModule.tokens.find(t => t.id === removed.id)?.name ?? '元件';
+    onGameModuleChange({
+      ...gameModule,
+      board: { items: boardItems.filter(i => i.instanceId !== instanceId) },
+      trash: pushToTrash(gameModule, 'boardItem', `棋盤元件「${tokenName}」`, removed),
+    });
   };
 
   // ── token helpers ──
@@ -1074,10 +1244,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   };
 
   const removeToken = (tokenId: string) => {
+    const removed = gameModule.tokens.find(t => t.id === tokenId);
+    if (!removed) return;
     onGameModuleChange({
       ...gameModule,
       tokens: gameModule.tokens.filter(t => t.id !== tokenId),
       board: { items: boardItems.filter(i => i.id !== tokenId) },
+      trash: pushToTrash(gameModule, 'token', `元件「${removed.name}」`, removed),
     });
     if (selectedToken?.id === tokenId) setSelectedToken(null);
   };
@@ -1101,7 +1274,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
   };
 
   const removeAction = (actionId: string) => {
-    onGameModuleChange({ ...gameModule, actions: gameModule.actions.filter(a => a.id !== actionId) });
+    const removed = gameModule.actions.find(a => a.id === actionId);
+    if (!removed) return;
+    onGameModuleChange({
+      ...gameModule,
+      actions: gameModule.actions.filter(a => a.id !== actionId),
+      trash: pushToTrash(gameModule, 'action', `動作「${removed.name}」`, removed),
+    });
     if (selectedAction?.id === actionId) setSelectedAction(null);
   };
 
@@ -1294,6 +1473,23 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
               棋盤設定
             </button>
             <button
+              onClick={() => setShowTrash(true)}
+              title="垃圾桶（已刪除項目，可還原）"
+              className="relative flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5"
+              style={{ background: '#FFFFFF', color: '#5C4A33', border: '1.5px solid #F0E6D6' }}
+            >
+              <Trash className="w-4 h-4 mr-1" />
+              垃圾桶
+              {(gameModule.trash?.length ?? 0) > 0 && (
+                <span
+                  className="ml-1.5 min-w-[18px] h-[18px] text-[10px] rounded-full flex items-center justify-center px-1 font-bold"
+                  style={{ background: '#EF8E72', color: '#fff' }}
+                >
+                  {gameModule.trash!.length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => downloadGameModule(gameModule, 'game_module.json')}
               className="flex items-center px-3 py-1.5 rounded-full text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
               style={{ background: '#F4B860', boxShadow: '0 2px 8px rgba(224,155,61,0.5)' }}
@@ -1303,6 +1499,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             </button>
           </div>
         </div>
+
+        {showTrash && (
+          <TrashPanel
+            trash={gameModule.trash ?? []}
+            onClose={() => setShowTrash(false)}
+            onRestore={(trashId) => onGameModuleChange(restoreFromTrash(gameModule, trashId))}
+            onEmpty={() => onGameModuleChange({ ...gameModule, trash: [] })}
+          />
+        )}
 
         {showBoardConfig && (
           <BoardConfigPanel config={boardConfig} onChange={updateBoardConfig} />
