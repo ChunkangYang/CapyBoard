@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/CapyBoard/static/css/main.9dc6d7d8.css",
-    "main.js": "/CapyBoard/static/js/main.9857337d.js",
+    "main.css": "/CapyBoard/static/css/main.ffac5bb3.css",
+    "main.js": "/CapyBoard/static/js/main.979b6ad9.js",
     "index.html": "/CapyBoard/index.html",
-    "main.9dc6d7d8.css.map": "/CapyBoard/static/css/main.9dc6d7d8.css.map",
-    "main.9857337d.js.map": "/CapyBoard/static/js/main.9857337d.js.map"
+    "main.ffac5bb3.css.map": "/CapyBoard/static/css/main.ffac5bb3.css.map",
+    "main.979b6ad9.js.map": "/CapyBoard/static/js/main.979b6ad9.js.map"
   },
   "entrypoints": [
-    "static/css/main.9dc6d7d8.css",
-    "static/js/main.9857337d.js"
+    "static/css/main.ffac5bb3.css",
+    "static/js/main.979b6ad9.js"
   ]
 }
