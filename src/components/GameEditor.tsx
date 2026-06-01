@@ -281,7 +281,12 @@ const DroppableWorkspace: React.FC<{
               {token.name}
             </span>
             <button
-              className="absolute -top-2 -right-2 w-5 h-5 bg-rose-400 hover:bg-rose-500 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center leading-none shadow"
+              aria-label={`刪除 ${token.name}`}
+              title="刪除"
+              className="absolute -top-2 -right-2 w-5 h-5 bg-rose-400 hover:bg-rose-500 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center leading-none shadow z-20"
+              style={{ cursor: 'pointer' }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onItemRemove(item.instanceId); }}
             >×</button>
           </div>
