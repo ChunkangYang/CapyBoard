@@ -327,11 +327,18 @@ const DroppableWorkspace: React.FC<{
   };
 
   // 已放置元件：按住拖曳移動
-  const dragStateRef = useRef<{ instanceId: string; moved: boolean } | null>(null);
+  const dragStateRef = useRef<{ instanceId: string; moved: boolean; offsetX: number; offsetY: number } | null>(null);
   const onItemPointerDown = (e: React.PointerEvent, instanceId: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    dragStateRef.current = { instanceId, moved: false };
+    // 記錄指標相對「元件左上角」的偏移，移動時扣除，抓哪點就拖哪點，避免 token 往右下跳
+    const itemRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    dragStateRef.current = {
+      instanceId,
+      moved: false,
+      offsetX: e.clientX - itemRect.left,
+      offsetY: e.clientY - itemRect.top,
+    };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
   };
   const onItemPointerMove = (e: React.PointerEvent) => {
@@ -340,7 +347,9 @@ const DroppableWorkspace: React.FC<{
     if (!st || !node) return;
     st.moved = true;
     const rect = node.getBoundingClientRect();
-    const snapped = snapToGrid({ x: e.clientX - rect.left, y: e.clientY - rect.top }, boardConfig.gridSize);
+    const rawX = e.clientX - rect.left - st.offsetX;
+    const rawY = e.clientY - rect.top - st.offsetY;
+    const snapped = snapToGrid({ x: rawX, y: rawY }, boardConfig.gridSize);
     const pos = {
       x: Math.max(0, Math.min(snapped.x, boardConfig.width)),
       y: Math.max(0, Math.min(snapped.y, boardConfig.height)),
