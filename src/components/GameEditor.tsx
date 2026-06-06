@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Button } from './ui/button';
-import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable, BoardCell, CellTemplateType, CellEvent, TrashItem, TrashKind } from '../engine/types';
+import { Token, GameModule, BoardItem, Action, ActionType, Player, BoardConfig, GameVariable, BoardCell, CellTemplateType, CellEvent, TrashItem, TrashKind, BoardZone } from '../engine/types';
 import { createDragItem, createBoardItem, calculateDropPosition, snapToGrid } from '../utils/dragDropHelpers';
 import { downloadGameModule } from '../utils/jsonLoader';
 import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable, Map, ChevronRight, ChevronLeft, Trash, RotateCcw, X } from 'lucide-react';
@@ -50,13 +50,17 @@ function restoreFromTrash(module: GameModule, trashId: string): GameModule {
       const reindexed = cells.map((c, i) => ({ ...c, index: i }));
       return { ...m, boardConfig: { ...(m.boardConfig as BoardConfig), cells: reindexed } };
     }
+    case 'zone': {
+      const zones = [...(m.boardConfig?.zones ?? []), item.payload];
+      return { ...m, boardConfig: { ...(m.boardConfig as BoardConfig), zones } };
+    }
     default:
       return m;
   }
 }
 
 const TRASH_KIND_LABEL: Record<TrashKind, string> = {
-  token: '元件', action: '動作', player: '玩家', variable: '變數', cell: '格子', boardItem: '棋盤元件',
+  token: '元件', action: '動作', player: '玩家', variable: '變數', cell: '格子', boardItem: '棋盤元件', zone: '區域',
 };
 
 // ─── 垃圾桶面板（彈窗：逐項還原 + 一鍵清空） ───────────────────────────────────────
@@ -294,17 +298,151 @@ const DraggableToken: React.FC<{
   );
 };
 
+// ─── Zone palette ─────────────────────────────────────────────────────────────
+const ZONE_STYLE: Record<BoardZone['kind'], { border: string; fill: string; text: string; label: string }> = {
+  player: { border: '#E09B3D', fill: 'rgba(244,184,96,0.14)', text: '#B07A28', label: '玩家區' },
+  pool:   { border: '#6FA582', fill: 'rgba(143,191,159,0.16)', text: '#2F5C3E', label: '供給池區' },
+};
+
+// ─── Editor zone box（可拖移/縮放/刪除的區域框）──────────────────────────────────
+const ZoneBox: React.FC<{
+  zone: BoardZone;
+  tokens: Token[];
+  players: Player[];
+  selected: boolean;
+  gridSize: number;
+  boardWidth: number;
+  boardHeight: number;
+  onSelect: () => void;
+  onMove: (x: number, y: number) => void;
+  onResize: (w: number, h: number) => void;
+  onRemove: () => void;
+}> = ({ zone, tokens, players, selected, gridSize, boardWidth, boardHeight, onSelect, onMove, onResize, onRemove }) => {
+  const st = ZONE_STYLE[zone.kind];
+  const moveRef = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
+  const resizeRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const g = gridSize || 40;
+  const snap = (v: number) => Math.round(v / g) * g;
+
+  const onBodyDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    moveRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+  const onBodyMove = (e: React.PointerEvent) => {
+    const m = moveRef.current;
+    if (!m) return;
+    m.moved = true;
+    const parent = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect();
+    const x = Math.max(0, Math.min(snap(e.clientX - parent.left - m.dx), boardWidth - zone.rect.width));
+    const y = Math.max(0, Math.min(snap(e.clientY - parent.top - m.dy), boardHeight - zone.rect.height));
+    onMove(x, y);
+  };
+  const onBodyUp = (e: React.PointerEvent) => {
+    const m = moveRef.current;
+    moveRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    if (m && !m.moved) onSelect();
+  };
+
+  const onResizeDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    resizeRef.current = { x: e.clientX, y: e.clientY, w: zone.rect.width, h: zone.rect.height };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    const r = resizeRef.current;
+    if (!r) return;
+    const w = Math.max(g * 2, snap(r.w + (e.clientX - r.x)));
+    const h = Math.max(g * 2, snap(r.h + (e.clientY - r.y)));
+    onResize(Math.min(w, boardWidth - zone.rect.x), Math.min(h, boardHeight - zone.rect.y));
+  };
+  const onResizeUp = (e: React.PointerEvent) => {
+    resizeRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  };
+
+  const ownerName = zone.kind === 'player'
+    ? (players.find(p => p.id === zone.playerId)?.name ?? '未指定玩家')
+    : (zone.label || '供給池');
+  const poolTokens = zone.kind === 'pool'
+    ? (zone.tokenIds && zone.tokenIds.length > 0
+        ? tokens.filter(t => zone.tokenIds!.includes(t.id))
+        : tokens.filter(t => t.supply !== undefined))
+    : [];
+
+  return (
+    <div
+      className="absolute rounded-xl select-none"
+      style={{
+        left: zone.rect.x, top: zone.rect.y, width: zone.rect.width, height: zone.rect.height,
+        border: `2px dashed ${st.border}`,
+        background: st.fill,
+        boxShadow: selected ? `0 0 0 2px ${st.border}` : undefined,
+        touchAction: 'none', cursor: 'grab', zIndex: 1,
+      }}
+      onPointerDown={onBodyDown}
+      onPointerMove={onBodyMove}
+      onPointerUp={onBodyUp}
+    >
+      <div
+        className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-t-lg"
+        style={{ color: st.text, background: 'rgba(255,255,255,0.55)' }}
+      >
+        <span className="px-1 rounded" style={{ background: st.border, color: '#fff' }}>{st.label}</span>
+        <span className="truncate">{ownerName}</span>
+      </div>
+      {zone.kind === 'pool' && (
+        <div className="flex flex-wrap gap-1 p-1.5">
+          {poolTokens.length === 0
+            ? <span className="text-[10px]" style={{ color: st.text }}>（無設定供給的 token）</span>
+            : poolTokens.map(t => (
+                <span key={t.id} className="text-[11px] px-1 rounded" style={{ background: 'rgba(255,255,255,0.6)', color: st.text }}>
+                  {t.icon ?? ''}{t.name}
+                </span>
+              ))
+          }
+        </div>
+      )}
+      <button
+        aria-label="刪除區域"
+        title="刪除區域"
+        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-400 hover:bg-rose-500 text-white rounded-full text-xs flex items-center justify-center leading-none shadow z-20"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+      >×</button>
+      <div
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeUp}
+        title="拖曳調整區域大小"
+        className="absolute bottom-0 right-0 w-4 h-4"
+        style={{ cursor: 'nwse-resize', touchAction: 'none', background: `linear-gradient(135deg, transparent 45%, ${st.border} 45%)`, borderRadius: '0 0 10px 0' }}
+      />
+    </div>
+  );
+};
+
 // ─── Droppable workspace ──────────────────────────────────────────────────────
 const DroppableWorkspace: React.FC<{
   onDrop: (item: any, position: { x: number; y: number }) => void;
   boardItems: BoardItem[];
   tokens: Token[];
+  players: Player[];
+  zones: BoardZone[];
+  selectedZoneId: string | null;
+  onZoneSelect: (id: string) => void;
+  onZoneMove: (id: string, x: number, y: number) => void;
+  onZoneResize: (id: string, w: number, h: number) => void;
+  onZoneRemove: (id: string) => void;
   onItemClick: (item: BoardItem) => void;
   onItemRemove: (instanceId: string) => void;
   onItemMove: (instanceId: string, position: { x: number; y: number }) => void;
   onResizeBoard: (width: number, height: number) => void;
   boardConfig: BoardConfig;
-}> = ({ onDrop, boardItems, tokens, onItemClick, onItemRemove, onItemMove, onResizeBoard, boardConfig }) => {
+}> = ({ onDrop, boardItems, tokens, players, zones, selectedZoneId, onZoneSelect, onZoneMove, onZoneResize, onZoneRemove, onItemClick, onItemRemove, onItemMove, onResizeBoard, boardConfig }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [{ isOver }, drop] = useDrop({
@@ -410,11 +548,28 @@ const DroppableWorkspace: React.FC<{
         borderColor: isOver ? '#E09B3D' : '#EAD9BF',
       }}
     >
-      {boardItems.length === 0 && (
+      {boardItems.length === 0 && zones.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none select-none">
           {isOver ? '放開滑鼠放置元件' : '從左側拖放元件到此處'}
         </div>
       )}
+
+      {zones.map((zone) => (
+        <ZoneBox
+          key={zone.id}
+          zone={zone}
+          tokens={tokens}
+          players={players}
+          selected={selectedZoneId === zone.id}
+          gridSize={boardConfig.gridSize}
+          boardWidth={boardConfig.width}
+          boardHeight={boardConfig.height}
+          onSelect={() => onZoneSelect(zone.id)}
+          onMove={(x, y) => onZoneMove(zone.id, x, y)}
+          onResize={(w, h) => onZoneResize(zone.id, w, h)}
+          onRemove={() => onZoneRemove(zone.id)}
+        />
+      ))}
 
       {boardItems.map((item) => {
         const token = tokens.find(t => t.id === item.id);
@@ -423,7 +578,7 @@ const DroppableWorkspace: React.FC<{
           <div
             key={item.instanceId}
             className="absolute group select-none flex flex-col items-center"
-            style={{ left: item.position.x, top: item.position.y, cursor: 'grab', touchAction: 'none' }}
+            style={{ left: item.position.x, top: item.position.y, cursor: 'grab', touchAction: 'none', zIndex: 2 }}
             onDragStart={(e) => e.preventDefault()}
             onPointerDown={(e) => onItemPointerDown(e, item.instanceId)}
             onPointerMove={onItemPointerMove}
@@ -1179,11 +1334,104 @@ const PlayersPanel: React.FC<{
   );
 };
 
+// ─── Zone Inspector（右側面板：設定區域歸屬與呈現方式）──────────────────────────
+const ZoneInspector: React.FC<{
+  zone: BoardZone;
+  players: Player[];
+  tokens: Token[];
+  onChange: (patch: Partial<BoardZone>) => void;
+  onRemove: () => void;
+}> = ({ zone, players, tokens, onChange, onRemove }) => {
+  const st = ZONE_STYLE[zone.kind];
+  const supplyTokens = tokens.filter(t => t.supply !== undefined);
+  const selectedIds = zone.tokenIds ?? [];
+
+  const toggleToken = (id: string) => {
+    const next = selectedIds.includes(id) ? selectedIds.filter(t => t !== id) : [...selectedIds, id];
+    onChange({ tokenIds: next });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="px-2 py-0.5 rounded text-xs font-semibold text-white" style={{ background: st.border }}>{st.label}</span>
+        <span className="text-xs" style={{ color: '#A1907A' }}>執行時即時計數</span>
+      </div>
+
+      {zone.kind === 'player' ? (
+        <div>
+          <label className="block text-xs font-medium mb-0.5">歸屬玩家</label>
+          <select
+            className="w-full p-1.5 border rounded text-sm"
+            value={zone.playerId ?? ''}
+            onChange={e => onChange({ playerId: e.target.value })}
+          >
+            <option value="">-- 選擇玩家 --</option>
+            {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <div className="text-[11px] mt-1" style={{ color: '#A1907A' }}>
+            執行時這塊區域會顯示該玩家持有的所有 token 籌碼與數量
+          </div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <label className="block text-xs font-medium mb-0.5">區域標題</label>
+            <input
+              type="text"
+              className="w-full p-1.5 border rounded text-sm"
+              value={zone.label ?? ''}
+              placeholder="供給池"
+              onChange={e => onChange({ label: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">顯示哪些 token 的殘量</label>
+            {supplyTokens.length === 0 ? (
+              <div className="text-[11px] p-2 rounded" style={{ background: '#FFF7E8', color: '#B07A28' }}>
+                尚無 token 設定「供給總量」。請先到元件屬性面板設定供給，殘量才有意義。
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="text-[11px]" style={{ color: '#A1907A' }}>未勾選＝顯示全部有供給的 token</div>
+                {supplyTokens.map(t => (
+                  <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => toggleToken(t.id)} />
+                    <span>{t.icon ?? ''}{t.name}</span>
+                    <span className="text-[11px] ml-auto" style={{ color: '#A1907A' }}>供給 {t.supply}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <div>
+        <label className="block text-xs font-medium mb-0.5">數量呈現</label>
+        <select
+          className="w-full p-1.5 border rounded text-sm"
+          value={zone.display ?? 'count'}
+          onChange={e => onChange({ display: e.target.value as BoardZone['display'] })}
+        >
+          <option value="count">數字（籌碼 ×N）</option>
+          <option value="stack">堆疊（疊放籌碼）</option>
+        </select>
+      </div>
+
+      <Button variant="destructive" size="sm" className="w-full" onClick={onRemove}>
+        <Trash2 className="w-3.5 h-3.5 mr-1" /> 刪除區域
+      </Button>
+    </div>
+  );
+};
+
 // ─── Main GameEditor ──────────────────────────────────────────────────────────
 export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModuleChange }) => {
   const [leftTab, setLeftTab] = useState<'tokens' | 'actions' | 'players' | 'variables' | 'cells'>('tokens');
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [showBoardConfig, setShowBoardConfig] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
@@ -1311,6 +1559,46 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
     updateBoardConfig({ ...boardConfig, width, height });
   };
 
+  // ── zone helpers（玩家區 / 供給池區）──
+  const zones = boardConfig.zones ?? [];
+  const setZones = (next: BoardZone[]) => updateBoardConfig({ ...boardConfig, zones: next });
+
+  const addZone = (kind: BoardZone['kind']) => {
+    const id = `zone_${Date.now()}`;
+    const newZone: BoardZone = kind === 'player'
+      ? { id, kind, rect: { x: 40, y: 40, width: 180, height: 130 }, playerId: gameModule.players[0]?.id, display: 'count' }
+      : { id, kind, rect: { x: 40, y: 200, width: 220, height: 130 }, tokenIds: [], display: 'count', label: '供給池' };
+    setZones([...zones, newZone]);
+    setSelectedZoneId(id);
+    setSelectedToken(null);
+    setSelectedAction(null);
+  };
+
+  const updateZone = (id: string, patch: Partial<BoardZone>) =>
+    setZones(zones.map(z => (z.id === id ? { ...z, ...patch } : z)));
+
+  const moveZone = (id: string, x: number, y: number) =>
+    setZones(zones.map(z => (z.id === id ? { ...z, rect: { ...z.rect, x, y } } : z)));
+
+  const resizeZone = (id: string, width: number, height: number) =>
+    setZones(zones.map(z => (z.id === id ? { ...z, rect: { ...z.rect, width, height } } : z)));
+
+  const removeZone = (id: string) => {
+    const removed = zones.find(z => z.id === id);
+    if (!removed) return;
+    const label = removed.kind === 'player'
+      ? `玩家區「${gameModule.players.find(p => p.id === removed.playerId)?.name ?? '未指定'}」`
+      : `供給池區「${removed.label ?? ''}」`;
+    onGameModuleChange({
+      ...gameModule,
+      boardConfig: { ...boardConfig, zones: zones.filter(z => z.id !== id) },
+      trash: pushToTrash(gameModule, 'zone', label, removed),
+    });
+    if (selectedZoneId === id) setSelectedZoneId(null);
+  };
+
+  const selectedZone = zones.find(z => z.id === selectedZoneId) ?? null;
+
   // ── right panel content ──
   const isActionSelected = selectedAction && leftTab === 'actions';
 
@@ -1368,7 +1656,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                 <div key={token.id} className="flex items-center gap-1.5">
                   <DraggableToken
                     token={token}
-                    onSelect={(t) => { setSelectedToken(t); setSelectedAction(null); }}
+                    onSelect={(t) => { setSelectedToken(t); setSelectedAction(null); setSelectedZoneId(null); }}
                     isSelected={selectedToken?.id === token.id}
                   />
                   <Button variant="destructive" size="sm" onClick={() => removeToken(token.id)}>
@@ -1400,7 +1688,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                       ? 'bg-blue-50 border-blue-300'
                       : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
                   }`}
-                  onClick={() => { setSelectedAction(action); setSelectedToken(null); }}
+                  onClick={() => { setSelectedAction(action); setSelectedToken(null); setSelectedZoneId(null); }}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{action.name}</div>
@@ -1481,6 +1769,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
               <Grid className="w-4 h-4 mr-1" />
               棋盤設定
             </button>
+            <Tooltip content="新增「玩家資源區」：執行時顯示該玩家的 token 籌碼與數量" side="bottom">
+              <button
+                onClick={() => addZone('player')}
+                className="flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5"
+                style={{ background: '#FFFFFF', color: '#B07A28', border: '1.5px solid #F4D7A1' }}
+              >
+                <Plus className="w-4 h-4 mr-1" /> 玩家區
+              </button>
+            </Tooltip>
+            <Tooltip content="新增「供給池區」：執行時顯示 token 殘量（需先為 token 設定供給總量）" side="bottom">
+              <button
+                onClick={() => addZone('pool')}
+                className="flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:-translate-y-0.5"
+                style={{ background: '#FFFFFF', color: '#2F5C3E', border: '1.5px solid #B7DDC3' }}
+              >
+                <Plus className="w-4 h-4 mr-1" /> 供給池
+              </button>
+            </Tooltip>
             <button
               onClick={() => setShowTrash(true)}
               title="垃圾桶（已刪除項目，可還原）"
@@ -1527,6 +1833,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             onDrop={handleDrop}
             boardItems={boardItems}
             tokens={gameModule.tokens}
+            players={gameModule.players}
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            onZoneSelect={(id) => { setSelectedZoneId(id); setSelectedToken(null); setSelectedAction(null); }}
+            onZoneMove={moveZone}
+            onZoneResize={resizeZone}
+            onZoneRemove={removeZone}
             onItemClick={handleItemClick}
             onItemRemove={handleItemRemove}
             onItemMove={handleItemMove}
@@ -1554,7 +1867,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            {isActionSelected && selectedAction ? (
+            {selectedZone ? (
+              <ZoneInspector
+                zone={selectedZone}
+                players={gameModule.players}
+                tokens={gameModule.tokens}
+                onChange={(patch) => updateZone(selectedZone.id, patch)}
+                onRemove={() => removeZone(selectedZone.id)}
+              />
+            ) : isActionSelected && selectedAction ? (
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium mb-0.5">動作名稱</label>
@@ -1636,6 +1957,23 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                     <option value="dice">骰子</option>
                     <option value="custom">自訂</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-0.5">供給總量（留空＝無限）</label>
+                  <input
+                    type="number"
+                    min={0}
+                    className="w-full p-1.5 border rounded text-sm"
+                    placeholder="無限"
+                    value={selectedToken.supply ?? ''}
+                    onChange={e => {
+                      const v = e.target.value.trim();
+                      updateToken({ ...selectedToken, supply: v === '' ? undefined : Math.max(0, parseInt(v) || 0) });
+                    }}
+                  />
+                  <div className="text-[11px] mt-0.5" style={{ color: '#A1907A' }}>
+                    設定後，所有玩家持有＋供給池殘量總和不會超過此值；池空時無法再取得
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5">ID</label>

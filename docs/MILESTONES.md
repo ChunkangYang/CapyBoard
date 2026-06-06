@@ -135,10 +135,10 @@
 - [x] `getSupplyRemaining(tokenId)`：殘量 = supply − Σ玩家持有 − Σ牌堆（純衍生，不存新 state）
 - [x] 單元測試：供給扣減/回補/池空失敗（T1–T6 全通過，總 40 案例）
 
-### Sprint 18 — 編輯器（供給欄位 + 區域框選）
-- [ ] Token 屬性面板新增「供給總量」欄位（resource 類型）
-- [ ] 中央畫布支援框選/新增「玩家區」「供給池區」zone，可拖移/縮放/刪除（進垃圾桶）
-- [ ] 右側面板設定 zone 歸屬（哪位玩家 / 哪些 token、count 或 stack 呈現）
+### Sprint 18 — 編輯器（供給欄位 + 區域框選）✅
+- [x] Token 屬性面板新增「供給總量」欄位（留空＝無限）
+- [x] 工具列「＋玩家區」「＋供給池區」新增 zone，畫布可拖移/縮放/刪除（進垃圾桶 kind='zone'）
+- [x] 右側 ZoneInspector 設定 zone 歸屬（哪位玩家 / 哪些有供給的 token、count 或 stack 呈現）
 
 ### Sprint 19 — 執行頁 RuntimeBoard
 - [ ] 執行頁渲染視覺棋盤：畫布背景 + 格線
