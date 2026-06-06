@@ -120,6 +120,34 @@
 
 ---
 
+## Milestone 5：運行時視覺棋盤（2026-06 起）
+> 讓「遊戲執行」真正把棋盤畫出來：玩家資源區、共享供給池、格子軌道都即時呈現，
+> token 互動（獲得/消耗/移動）以籌碼＋數量視覺化。詳見 [S17_DETAIL_DESIGN.md](S17_DETAIL_DESIGN.md)。
+>
+> 背景：編輯器有兩套棋盤（自由畫布 `board.items`、格子序列 `boardConfig.cells`），
+> 但「遊戲執行」兩套都不畫，只用文字顯示。本里程碑補上視覺棋盤層，
+> 且一律從現有 source of truth（`player.tokens` / `tokenPositions` / `pilesState`）讀值，不另造位置真相。
+
+### Sprint 17 — 資料模型 & 引擎（有限供給 + 區域型別）✅
+- [x] `Token.supply?`：有限供給總量（undefined = 無限，維持現狀）
+- [x] `BoardZone` 型別（kind: player/pool、rect、playerId/tokenIds、display）存於 `boardConfig.zones`
+- [x] RuleEngine：gainToken / tradeToken / drawCard 鑄造端尊重供給上限（池空則失敗）
+- [x] `getSupplyRemaining(tokenId)`：殘量 = supply − Σ玩家持有 − Σ牌堆（純衍生，不存新 state）
+- [x] 單元測試：供給扣減/回補/池空失敗（T1–T6 全通過，總 40 案例）
+
+### Sprint 18 — 編輯器（供給欄位 + 區域框選）
+- [ ] Token 屬性面板新增「供給總量」欄位（resource 類型）
+- [ ] 中央畫布支援框選/新增「玩家區」「供給池區」zone，可拖移/縮放/刪除（進垃圾桶）
+- [ ] 右側面板設定 zone 歸屬（哪位玩家 / 哪些 token、count 或 stack 呈現）
+
+### Sprint 19 — 執行頁 RuntimeBoard
+- [ ] 執行頁渲染視覺棋盤：畫布背景 + 格線
+- [ ] zone 即時計數：玩家區畫該玩家 token 籌碼＋數量；供給池區畫殘量
+- [ ] 有 cells 時畫格子軌道 + token 位置標記（隨 moveToken 更新）
+- [ ] 自動組合：依遊戲有無 cells / zones 決定呈現哪些層
+
+---
+
 ## 里程碑總覽
 
 | 里程碑 | 時間 | 目標 | 狀態 |
@@ -128,6 +156,7 @@
 | M2 Complete Game Loop | 5月中 ~ 7月初 | 能設計並玩一個完整遊戲 | ✅ 完成 |
 | M3 UX & Content | 7月初 ~ 9月中 | 好用好看、有範例遊戲 | ✅ 完成（Sprint 10 部分延後） |
 | M4 Demo Ready | 9月中 ~ 11月底 | 品質打磨、可對外展示 | ✅ 完成 |
+| M5 運行時視覺棋盤 | 2026-06 起 | 遊戲執行畫出玩家區/供給池/格子軌道，token 互動視覺化 | 🚧 進行中 |
 
 ---
 

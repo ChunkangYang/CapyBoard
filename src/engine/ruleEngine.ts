@@ -37,6 +37,22 @@ export class RuleEngine {
     return this.gameState;
   }
 
+  /** 供給殘量 = supply − Σ所有玩家持有 − Σ所有牌堆中該 token。
+   *  token.supply 為 undefined → 回傳 null（無限供給，不受限）。
+   *  純衍生，不存第二份真相。 */
+  public getSupplyRemaining(tokenId: string): number | null {
+    const token = this.gameState.module.tokens.find(t => t.id === tokenId);
+    if (!token || token.supply === undefined) return null;
+    let held = 0;
+    for (const p of this.gameState.module.players) {
+      held += p.tokens.filter(t => t === tokenId).length;
+    }
+    for (const pile of Object.values(this.gameState.pilesState)) {
+      held += pile.filter(t => t === tokenId).length;
+    }
+    return token.supply - held;
+  }
+
   public startGame(): void {
     this.gameState.phase = 'playing';
     this.addEventLog('遊戲開始！');
@@ -69,6 +85,11 @@ export class RuleEngine {
       case 'gainToken': {
         const { tokenId, count = 1 } = params;
         const token = this.gameState.module.tokens.find(t => t.id === tokenId);
+        const remaining = this.getSupplyRemaining(tokenId);
+        if (remaining !== null && remaining < count) {
+          this.addEventLog(`失敗：${token?.name ?? tokenId} 供給不足（需要 ${count}，供給池剩 ${remaining}）`);
+          return false;
+        }
         for (let i = 0; i < count; i++) p.tokens.push(tokenId);
         this.addEventLog(`獲得 ${token?.name ?? tokenId} ×${count}`);
         break;
@@ -96,6 +117,13 @@ export class RuleEngine {
         const owned = p.tokens.filter(t => t === fromTokenId).length;
         if (owned < fromCount) {
           this.addEventLog(`失敗：${fromToken?.name ?? fromTokenId} 不足（需要 ${fromCount}，擁有 ${owned}）`);
+          return false;
+        }
+        // 換得端尊重供給上限（換出端釋放的數量會先回補殘量）
+        const toRemaining = this.getSupplyRemaining(toTokenId);
+        const freedBySpend = fromTokenId === toTokenId ? fromCount : 0;
+        if (toRemaining !== null && toRemaining + freedBySpend < toCount) {
+          this.addEventLog(`失敗：${toToken?.name ?? toTokenId} 供給不足（需要 ${toCount}，供給池剩 ${toRemaining + freedBySpend}）`);
           return false;
         }
         let removed = 0;
@@ -129,9 +157,14 @@ export class RuleEngine {
           const drawn = this.gameState.module.tokens.find(t => t.id === drawnId);
           this.addEventLog(`從牌堆抽牌：${drawn?.name ?? drawnId}（剩餘 ${pile.length} 張）`);
         } else if (tokenId) {
-          // 直接獲得指定 token
-          p.tokens.push(tokenId);
+          // 直接獲得指定 token（鑄造，尊重供給上限）
           const token = this.gameState.module.tokens.find(t => t.id === tokenId);
+          const remaining = this.getSupplyRemaining(tokenId);
+          if (remaining !== null && remaining < 1) {
+            this.addEventLog(`失敗：${token?.name ?? tokenId} 供給不足（供給池已空）`);
+            return false;
+          }
+          p.tokens.push(tokenId);
           this.addEventLog(`抽牌：獲得 ${token?.name ?? tokenId}`);
         }
         break;

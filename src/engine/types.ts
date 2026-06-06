@@ -15,6 +15,7 @@ export interface Token {
   name: string;
   type: 'resource' | 'card' | 'dice' | 'custom';
   icon?: string;  // emoji 或文字圖示，例如 '⚔️' '🪙'
+  supply?: number;  // 有限供給總量；undefined = 無限（鑄造不受限，維持現狀）
   properties?: Record<string, any>;
 }
 
@@ -101,6 +102,18 @@ export interface BoardTheme {
   boardBackground?: string;  // hex color or css color
 }
 
+/** 棋盤區域 — 執行時即時計數的可視框（玩家資源區 / 共享供給池）。
+ *  只描述「畫在哪、歸誰」，不存任何數量；數量永遠即時讀真相層。 */
+export interface BoardZone {
+  id: string;
+  kind: 'player' | 'pool';
+  rect: { x: number; y: number; width: number; height: number };
+  playerId?: string;     // kind==='player'：歸屬玩家
+  tokenIds?: string[];   // kind==='pool'：顯示哪些 token（空 = 全部有 supply 的 token）
+  label?: string;
+  display?: 'count' | 'stack';  // 數字 or 堆疊；預設 count
+}
+
 export interface BoardConfig {
   width: number;     // 工作區寬度 (px)
   height: number;    // 工作區高度 (px)
@@ -108,6 +121,7 @@ export interface BoardConfig {
   showGrid: boolean;
   backgroundColor?: string;  // 棋盤背景色
   cells?: BoardCell[];        // 格子序列（index 0, 1, 2, ... N）
+  zones?: BoardZone[];        // 玩家區 / 供給池區（執行時即時計數）
 }
 
 export interface CardPile {
@@ -117,7 +131,7 @@ export interface CardPile {
 }
 
 /** 垃圾桶項目：被刪除的東西暫存於此，可還原或永久清空 */
-export type TrashKind = 'token' | 'action' | 'player' | 'variable' | 'cell' | 'boardItem';
+export type TrashKind = 'token' | 'action' | 'player' | 'variable' | 'cell' | 'boardItem' | 'zone';
 
 export interface TrashItem {
   trashId: string;

@@ -503,3 +503,77 @@ describe('RuleEngine — Edge Cases', () => {
     expect(engine.getCurrentPlayer().tokens.length).toBe(0);
   });
 });
+
+// ── 有限供給（Token.supply）─────────────────────────────────────────────────────
+describe('RuleEngine — 有限供給', () => {
+  function supplyModule() {
+    return makeModule({
+      tokens: [
+        { id: 'ore',  name: '礦石', type: 'resource', supply: 10 },
+        { id: 'gold', name: '黃金', type: 'resource', supply: 5 },
+        { id: 'free', name: '無限', type: 'resource' }, // 無 supply = 無限
+      ],
+      actions: [
+        { id: 'mine',  name: '採礦',   type: 'gainToken',  params: { tokenId: 'ore',  count: 2 } },
+        { id: 'spend', name: '花礦',   type: 'spendToken', params: { tokenId: 'ore',  count: 1 } },
+        { id: 'smelt', name: '冶煉',   type: 'tradeToken', params: { fromTokenId: 'ore', fromCount: 3, toTokenId: 'gold', toCount: 1 } },
+        { id: 'getfree', name: '取無限', type: 'gainToken', params: { tokenId: 'free', count: 100 } },
+      ],
+    });
+  }
+
+  test('T1：supply 為 undefined 時 remaining = null，鑄造不受限', () => {
+    const engine = new RuleEngine(supplyModule());
+    engine.startGame();
+    expect(engine.getSupplyRemaining('free')).toBeNull();
+    expect(engine.executeAction('getfree')).toBe(true);
+    expect(engine.getCurrentPlayer().tokens.filter(t => t === 'free').length).toBe(100);
+  });
+
+  test('T2：remaining = supply − Σ玩家持有', () => {
+    const mod = supplyModule();
+    mod.players[0].tokens = ['ore', 'ore', 'ore', 'ore'];
+    mod.players[1].tokens = ['ore', 'ore', 'ore'];
+    const engine = new RuleEngine(mod);
+    expect(engine.getSupplyRemaining('ore')).toBe(10 - 7);
+  });
+
+  test('T3：供給池空時 gainToken 失敗且持有不變', () => {
+    const mod = supplyModule();
+    mod.players[0].tokens = Array(10).fill('ore'); // 已用光
+    const engine = new RuleEngine(mod);
+    engine.startGame();
+    const before = engine.getCurrentPlayer().tokens.length;
+    expect(engine.executeAction('mine')).toBe(false);
+    expect(engine.getCurrentPlayer().tokens.length).toBe(before);
+    expect(engine.getSupplyRemaining('ore')).toBe(0);
+  });
+
+  test('T4：spendToken 後殘量自動回補', () => {
+    const mod = supplyModule();
+    mod.players[0].tokens = Array(10).fill('ore');
+    const engine = new RuleEngine(mod);
+    engine.startGame();
+    expect(engine.getSupplyRemaining('ore')).toBe(0);
+    expect(engine.executeAction('spend')).toBe(true); // 花掉 1
+    expect(engine.getSupplyRemaining('ore')).toBe(1);
+  });
+
+  test('T5：換得端供給不足時 tradeToken 失敗，換出端不被消耗', () => {
+    const mod = supplyModule();
+    // gold supply=5：玩家持有 5 gold 把 gold 池用光；另有 3 ore 可冶煉
+    mod.players[0].tokens = ['gold', 'gold', 'gold', 'gold', 'gold', 'ore', 'ore', 'ore'];
+    const engine = new RuleEngine(mod);
+    engine.startGame();
+    expect(engine.getSupplyRemaining('gold')).toBe(0);
+    expect(engine.executeAction('smelt')).toBe(false);
+    expect(engine.getCurrentPlayer().tokens.filter(t => t === 'ore').length).toBe(3);
+  });
+
+  test('T6：殘量扣掉牌堆中的 token', () => {
+    const mod = supplyModule();
+    mod.piles = [{ id: 'deck', name: '牌堆', cards: ['ore', 'ore'] }];
+    const engine = new RuleEngine(mod);
+    expect(engine.getSupplyRemaining('ore')).toBe(10 - 2);
+  });
+});
