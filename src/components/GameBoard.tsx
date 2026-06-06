@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { GameModule, GameState, Player } from '../engine/types';
+import { GameModule, GameState, Player, Token, BoardZone, BoardCell } from '../engine/types';
 import { RuleEngine } from '../engine/ruleEngine';
+import { TokenChip } from './TokenChip';
 import {
   RotateCcw, Play, SkipForward, ChevronDown, ChevronRight,
   Trophy, Swords, StepBack, PenLine, X,
@@ -278,6 +279,182 @@ const StateEditorModal: React.FC<{
   );
 };
 
+// ─── Runtime visual board ─────────────────────────────────────────────────────
+const RB_ZONE: Record<BoardZone['kind'], { border: string; fill: string; text: string; label: string }> = {
+  player: { border: '#E09B3D', fill: 'rgba(244,184,96,0.16)', text: '#B07A28', label: '玩家區' },
+  pool:   { border: '#6FA582', fill: 'rgba(143,191,159,0.18)', text: '#2F5C3E', label: '供給池' },
+};
+
+const CELL_TYPE_COLOR: Record<string, string> = {
+  empty: '#EDE3D3', start: '#8FBF9F', end: '#B89FD4',
+  bonus_score: '#F4B860', penalty_score: '#EF8E72',
+  bonus_token: '#F4B860', penalty_token: '#EF8E72',
+  draw_card: '#B89FD4', custom: '#D8C7AC',
+};
+
+/** 一顆 token 籌碼 + 數量（count 或 stack 呈現）。count===null 表示無限供給。 */
+const ChipCount: React.FC<{ token: Token; count: number | null; display: 'count' | 'stack' }> = ({ token, count, display }) => {
+  if (display === 'stack' && count !== null && count > 0) {
+    const shown = Math.min(count, 5);
+    return (
+      <div className="relative flex flex-col items-center" title={`${token.name} ×${count}`}>
+        <div className="relative" style={{ width: 34, height: 34 + (shown - 1) * 5 }}>
+          {Array.from({ length: shown }).map((_, i) => (
+            <div key={i} className="absolute left-0" style={{ top: (shown - 1 - i) * 5 }}>
+              <TokenChip token={token} size={34} />
+            </div>
+          ))}
+        </div>
+        <span className="text-[10px] font-bold mt-0.5" style={{ color: '#5C4A33' }}>×{count}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center" title={token.name}>
+      <TokenChip token={token} size={34} />
+      <span className="text-[10px] font-bold mt-0.5" style={{ color: count === 0 ? '#c0392b' : '#5C4A33' }}>
+        {count === null ? '∞' : `×${count}`}
+      </span>
+    </div>
+  );
+};
+
+/** 一個區域的即時計數視圖（玩家持有 / 供給殘量，全部即時讀真相層）。 */
+const ZoneView: React.FC<{ zone: BoardZone; gameState: GameState; engine: RuleEngine }> = ({ zone, gameState, engine }) => {
+  const st = RB_ZONE[zone.kind];
+  const tokenById = (id: string) => gameState.module.tokens.find(t => t.id === id);
+  const isCurrent = zone.kind === 'player' && zone.playerId === gameState.currentPlayer.id;
+
+  let title = '';
+  let entries: { token: Token; count: number | null }[] = [];
+  if (zone.kind === 'player') {
+    const player = gameState.module.players.find(p => p.id === zone.playerId);
+    title = player?.name ?? '未指定玩家';
+    if (player) {
+      const counts: Record<string, number> = {};
+      player.tokens.forEach(tid => { counts[tid] = (counts[tid] ?? 0) + 1; });
+      entries = Object.entries(counts)
+        .map(([tid, c]) => ({ token: tokenById(tid), count: c }))
+        .filter((e): e is { token: Token; count: number } => !!e.token);
+    }
+  } else {
+    title = zone.label || '供給池';
+    const ids = zone.tokenIds && zone.tokenIds.length > 0
+      ? zone.tokenIds
+      : gameState.module.tokens.filter(t => t.supply !== undefined).map(t => t.id);
+    entries = ids
+      .map(tid => ({ token: tokenById(tid), count: engine.getSupplyRemaining(tid) }))
+      .filter((e): e is { token: Token; count: number | null } => !!e.token);
+  }
+
+  const display = zone.display ?? 'count';
+
+  return (
+    <div
+      className="absolute rounded-xl overflow-hidden flex flex-col"
+      style={{
+        left: zone.rect.x, top: zone.rect.y, width: zone.rect.width, height: zone.rect.height,
+        border: `2px ${isCurrent ? 'solid' : 'dashed'} ${st.border}`,
+        background: st.fill,
+        boxShadow: isCurrent ? `0 0 0 3px ${st.border}55` : undefined,
+        zIndex: 1,
+      }}
+    >
+      <div className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold" style={{ color: st.text, background: 'rgba(255,255,255,0.6)' }}>
+        <span className="px-1 rounded text-white" style={{ background: st.border }}>{st.label}</span>
+        <span className="truncate">{title}</span>
+        {isCurrent && <span className="ml-auto text-[10px]" style={{ color: st.border }}>● 當前</span>}
+      </div>
+      <div className="flex-1 overflow-auto p-1.5 flex flex-wrap gap-2 content-start">
+        {entries.length === 0
+          ? <span className="text-[11px] m-auto" style={{ color: st.text }}>—</span>
+          : entries.map(({ token, count }) => (
+              <ChipCount key={token.id} token={token} count={count} display={display} />
+            ))
+        }
+      </div>
+    </div>
+  );
+};
+
+/** 格子軌道（有 cells 時呈現），token 標記在其當前位置。 */
+const CellTrack: React.FC<{ gameState: GameState }> = ({ gameState }) => {
+  const cells: BoardCell[] = gameState.module.boardConfig?.cells ?? [];
+  if (cells.length === 0) return null;
+  const tokensAt: Record<number, Token[]> = {};
+  for (const [tid, idx] of Object.entries(gameState.tokenPositions)) {
+    if (idx < 0) continue;
+    const tk = gameState.module.tokens.find(t => t.id === tid);
+    if (tk) (tokensAt[idx] = tokensAt[idx] ?? []).push(tk);
+  }
+  return (
+    <div>
+      <div className="text-[11px] font-medium mb-1" style={{ color: '#A1907A' }}>格子軌道</div>
+      <div className="flex gap-1.5 overflow-x-auto pb-2">
+        {cells.map(cell => (
+          <div
+            key={cell.index}
+            className="shrink-0 rounded-lg flex flex-col items-center justify-between p-1"
+            style={{ width: 64, minHeight: 72, background: '#FFFDF8', border: `2px solid ${CELL_TYPE_COLOR[cell.type] ?? '#EDE3D3'}` }}
+          >
+            <span className="self-start text-[9px] font-mono px-1 rounded" style={{ background: CELL_TYPE_COLOR[cell.type] ?? '#EDE3D3', color: '#5C4A33' }}>{cell.index}</span>
+            <span className="text-[10px] text-center leading-tight truncate w-full" style={{ color: '#5C4A33' }}>{cell.name}</span>
+            <div className="flex flex-wrap gap-0.5 justify-center min-h-[18px]">
+              {(tokensAt[cell.index] ?? []).map((tk, i) => (
+                <span key={i} className="text-base leading-none">{tk.icon ?? '🔘'}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const RuntimeBoard: React.FC<{ gameState: GameState; engine: RuleEngine }> = ({ gameState, engine }) => {
+  const cfg = gameState.module.boardConfig;
+  const zones = cfg?.zones ?? [];
+  const cells = cfg?.cells ?? [];
+  const items = gameState.module.board?.items ?? [];
+  if (!cfg || (zones.length === 0 && cells.length === 0 && items.length === 0)) return null;
+
+  const bg = cfg.backgroundColor ?? '#FFFDF8';
+  const gridStyle: React.CSSProperties = cfg.showGrid ? {
+    backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px)`,
+    backgroundSize: `${cfg.gridSize}px ${cfg.gridSize}px`,
+    backgroundColor: bg,
+  } : { backgroundColor: bg };
+
+  const showCanvas = zones.length > 0 || items.length > 0;
+
+  return (
+    <Card>
+      <CardHeader className="py-2 px-3"><CardTitle className="text-sm">遊戲棋盤</CardTitle></CardHeader>
+      <CardContent className="py-2 px-3 space-y-3">
+        {showCanvas && (
+          <div className="overflow-auto">
+            <div className="relative rounded-xl mx-auto" style={{ width: cfg.width, height: cfg.height, ...gridStyle, border: '1px solid #EAD9BF' }}>
+              {zones.map(zone => (
+                <ZoneView key={zone.id} zone={zone} gameState={gameState} engine={engine} />
+              ))}
+              {items.map(item => {
+                const token = gameState.module.tokens.find(t => t.id === item.id);
+                if (!token) return null;
+                return (
+                  <div key={item.instanceId} className="absolute flex flex-col items-center" style={{ left: item.position.x, top: item.position.y, zIndex: 2 }}>
+                    <TokenChip token={token} size={48} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {cells.length > 0 && <CellTrack gameState={gameState} />}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Main GameBoard ───────────────────────────────────────────────────────────
 export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
   const engineRef = useRef<RuleEngine>(new RuleEngine(JSON.parse(JSON.stringify(gameModule))));
@@ -404,6 +581,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
       {gameState.phase === 'ended' && (
         <GameEndScreen gameState={gameState} onReset={handleReset} />
       )}
+
+      {/* 視覺棋盤：玩家資源區 / 供給池殘量 / 格子軌道（即時讀真相層） */}
+      <RuntimeBoard gameState={gameState} engine={engineRef.current} />
 
       <div className="flex gap-4">
         {/* 玩家狀態 */}

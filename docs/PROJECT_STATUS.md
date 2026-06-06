@@ -1,6 +1,6 @@
 # CapyBoard — Project Status
 
-> 最後更新：2026-05-24
+> 最後更新：2026-06-06
 
 ## 專案概況
 桌遊設計工具，使用者可在瀏覽器中設計、編輯並試玩自製桌遊模組。
@@ -11,11 +11,19 @@
 - M2 Complete Game Loop — ✅ 完成
 - M3 UX & Content — ✅ 完成
 - M4 Demo Ready — ✅ 完成
+- M5 運行時視覺棋盤 — ✅ 完成（S17–S19）
 
 詳見 [MILESTONES.md](MILESTONES.md)。
 
+## 最新完成：M5 運行時視覺棋盤（2026-06-06）
+「遊戲執行」過去不畫任何視覺棋盤，只用文字顯示。M5 補上視覺棋盤層：
+- **有限供給（Token.supply）**：gainToken/tradeToken/drawCard 鑄造端尊重上限；`getSupplyRemaining` 殘量純衍生自 player.tokens + 牌堆，不存第二真相。
+- **編輯器區域框選**：工具列＋玩家區/＋供給池區，畫布上可拖移/縮放/刪除；右側 ZoneInspector 設定歸屬。
+- **執行頁 RuntimeBoard**：玩家區即時計數（count/stack）、供給池殘量、格子軌道 token 標記，全部即時讀真相層。
+- 驗證見 [EVIDENCES/M5-RUNTIME-BOARD.md](EVIDENCES/M5-RUNTIME-BOARD.md)；引擎單元測試 40 案例全通過。
+
 ## 目前待做（下一步）
-專案 M1–M4 已全部完成，目前處於 **demo-ready** 階段。後續工作為：
+專案 M1–M5 已全部完成。後續工作為：
 
 1. 部署相關人工操作 — GitHub repo 已建立並 push（https://github.com/ChunkangYang/CapyBoard）；尚需手動啟用 GitHub Pages（Settings → Pages → Deploy from gh-pages branch）或 Vercel
 2. 瀏覽器端自動化驗收 — 已由 Playwright 跑完 A–I 大部分（見 [EVIDENCES/TEST_REPORT_2026-05-24.md](EVIDENCES/TEST_REPORT_2026-05-24.md)）；剩餘需人工：拖拉互動、淘金熱完整流程、格子序列完整流程、手機響應式

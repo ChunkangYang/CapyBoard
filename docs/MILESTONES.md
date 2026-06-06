@@ -140,11 +140,12 @@
 - [x] 工具列「＋玩家區」「＋供給池區」新增 zone，畫布可拖移/縮放/刪除（進垃圾桶 kind='zone'）
 - [x] 右側 ZoneInspector 設定 zone 歸屬（哪位玩家 / 哪些有供給的 token、count 或 stack 呈現）
 
-### Sprint 19 — 執行頁 RuntimeBoard
-- [ ] 執行頁渲染視覺棋盤：畫布背景 + 格線
-- [ ] zone 即時計數：玩家區畫該玩家 token 籌碼＋數量；供給池區畫殘量
-- [ ] 有 cells 時畫格子軌道 + token 位置標記（隨 moveToken 更新）
-- [ ] 自動組合：依遊戲有無 cells / zones 決定呈現哪些層
+### Sprint 19 — 執行頁 RuntimeBoard ✅
+- [x] 執行頁渲染視覺棋盤：畫布背景 + 格線（TokenChip 抽成共用元件）
+- [x] zone 即時計數：玩家區畫該玩家 token 籌碼＋數量（count/stack）；供給池區畫殘量（∞/×N）
+- [x] 有 cells 時畫格子軌道 + token 位置標記（隨 moveToken 更新）
+- [x] 自動組合：依遊戲有無 cells / zones / items 決定呈現哪些層
+- [x] Playwright 驗證：玩家區計數、供給池殘量連動、格子軌道 token 標記（見 EVIDENCES/M5-RUNTIME-BOARD.md）
 
 ---
 
@@ -156,7 +157,7 @@
 | M2 Complete Game Loop | 5月中 ~ 7月初 | 能設計並玩一個完整遊戲 | ✅ 完成 |
 | M3 UX & Content | 7月初 ~ 9月中 | 好用好看、有範例遊戲 | ✅ 完成（Sprint 10 部分延後） |
 | M4 Demo Ready | 9月中 ~ 11月底 | 品質打磨、可對外展示 | ✅ 完成 |
-| M5 運行時視覺棋盤 | 2026-06 起 | 遊戲執行畫出玩家區/供給池/格子軌道，token 互動視覺化 | 🚧 進行中 |
+| M5 運行時視覺棋盤 | 2026-06 起 | 遊戲執行畫出玩家區/供給池/格子軌道，token 互動視覺化 | ✅ 完成（S17–S19） |
 
 ---
 
