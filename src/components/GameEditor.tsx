@@ -1040,7 +1040,10 @@ const VariablesPanel: React.FC<{
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-600">遊戲變數（{variables.length}）</span>
+        <span className="text-sm font-medium text-gray-600 inline-flex items-center gap-1">
+          遊戲變數（{variables.length}）
+          <HelpHint hkey="variables.panel" side="right" />
+        </span>
         <Tooltip content="新增自訂遊戲變數（血量、魔力等數值）" side="left">
           <Button size="sm" onClick={addVariable}><Plus className="w-3.5 h-3.5" /></Button>
         </Tooltip>
@@ -1216,7 +1219,10 @@ const PlayersPanel: React.FC<{
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-600">玩家列表（{gameModule.players.length} 人）</span>
+        <span className="text-sm font-medium text-gray-600 inline-flex items-center gap-1">
+          玩家列表（{gameModule.players.length} 人）
+          <HelpHint hkey="players.panel" side="right" />
+        </span>
         <Button size="sm" onClick={addPlayer}><Plus className="w-3.5 h-3.5" /></Button>
       </div>
 
@@ -1314,7 +1320,10 @@ const ZoneInspector: React.FC<{
 
       {zone.kind === 'player' ? (
         <div>
-          <label className="block text-xs font-medium mb-0.5">歸屬玩家</label>
+          <label className="text-xs font-medium mb-0.5 flex items-center gap-1">
+            歸屬玩家
+            <HelpHint hkey="zone.player" side="left" />
+          </label>
           <select
             className="w-full p-1.5 border rounded text-sm"
             value={zone.playerId ?? ''}
@@ -1340,7 +1349,10 @@ const ZoneInspector: React.FC<{
             />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1">顯示哪些 token 的殘量</label>
+            <label className="text-xs font-medium mb-1 flex items-center gap-1">
+              顯示哪些 token 的殘量
+              <HelpHint hkey="zone.pool" side="left" />
+            </label>
             {supplyTokens.length === 0 ? (
               <div className="text-[11px] p-2 rounded" style={{ background: '#FFF7E8', color: '#B07A28' }}>
                 尚無 token 設定「供給總量」。請先到元件屬性面板設定供給，殘量才有意義。
@@ -1600,7 +1612,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
         {leftTab === 'tokens' && (
           <div className="flex-1 overflow-y-auto p-3">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-gray-600">元件列表</span>
+              <span className="text-sm font-medium text-gray-600 inline-flex items-center gap-1">
+                元件列表
+                <HelpHint hkey="tokens.panel" side="right" />
+              </span>
               <Tooltip content="新增 Token（元件）" side="left">
                 <Button size="sm" onClick={addToken}><Plus className="w-3.5 h-3.5" /></Button>
               </Tooltip>
@@ -1628,7 +1643,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
         {leftTab === 'actions' && (
           <div className="flex-1 overflow-y-auto p-3">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-gray-600">動作列表</span>
+              <span className="text-sm font-medium text-gray-600 inline-flex items-center gap-1">
+                動作列表
+                <HelpHint hkey="actions.panel" side="right" />
+              </span>
               <Tooltip content="新增玩家動作" side="left">
                 <Button size="sm" onClick={addAction}><Plus className="w-3.5 h-3.5" /></Button>
               </Tooltip>
@@ -1913,7 +1931,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ gameModule, onGameModule
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-0.5">供給總量（留空＝無限）</label>
+                  <label className="text-xs font-medium mb-0.5 flex items-center gap-1">
+                    供給總量（留空＝無限）
+                    <HelpHint hkey="tokens.supply" side="left" />
+                  </label>
                   <input
                     type="number"
                     min={0}
