@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 
 interface TooltipProps {
-  content: string;
+  content: React.ReactNode;
   children: React.ReactElement;
   side?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
+  wide?: boolean;        // 長說明文字：自動換行 + 較寬，用於 help popup
   className?: string;
 }
 
@@ -13,6 +14,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   children,
   side = 'top',
   delay = 400,
+  wide = false,
   className = '',
 }) => {
   const [visible, setVisible] = useState(false);
@@ -33,12 +35,22 @@ export const Tooltip: React.FC<TooltipProps> = ({
     right:  'left-full  top-1/2 -translate-y-1/2 ml-1.5',
   };
 
+  const sizeClass = wide
+    ? 'max-w-[15rem] whitespace-normal leading-relaxed text-left'
+    : 'whitespace-nowrap';
+
   return (
     <span className={`relative inline-flex ${className}`} onMouseEnter={show} onMouseLeave={hide}>
       {children}
       {visible && (
         <span
-          className={`pointer-events-none absolute z-50 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-md ${posClass[side]}`}
+          className={`pointer-events-none absolute z-50 rounded-lg border px-2.5 py-1.5 text-xs ${sizeClass} ${posClass[side]}`}
+          style={{
+            background: '#FFFDF8',
+            color: '#5C4A33',
+            borderColor: '#F0E6D6',
+            boxShadow: '0 4px 14px rgba(120,80,30,0.12)',
+          }}
         >
           {content}
         </span>

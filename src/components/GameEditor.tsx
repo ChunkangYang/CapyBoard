@@ -6,6 +6,7 @@ import { createDragItem, createBoardItem, calculateDropPosition, snapToGrid } fr
 import { downloadGameModule } from '../utils/jsonLoader';
 import { Plus, Trash2, Save, Users, Grid, Zap, Layout, Variable, Map, ChevronRight, ChevronLeft, Trash, RotateCcw, X } from 'lucide-react';
 import { Tooltip } from './ui/tooltip';
+import { HelpHint } from './HelpHint';
 import { TokenChip, chipPaletteFor } from './TokenChip';
 
 interface GameEditorProps {
@@ -814,30 +815,43 @@ const CellsPanel: React.FC<{
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-600">格子序列（{cells.length} 格）</span>
+        <span className="text-sm font-medium text-gray-600 inline-flex items-center gap-1">
+          格子序列（{cells.length} 格）
+          <HelpHint hkey="cells.panel" side="bottom" />
+        </span>
         <Tooltip content="新增格子到序列末端" side="left">
           <Button size="sm" onClick={addCell}><Plus className="w-3.5 h-3.5" /></Button>
         </Tooltip>
       </div>
 
       {cells.length === 0 && (
-        <div className="text-xs text-gray-400 text-center py-3">
-          點擊 + 新增格子，或使用快速範本
+        <div
+          className="text-xs rounded-lg px-3 py-3 leading-relaxed"
+          style={{ background: '#FFFDF8', border: '1px solid #F0E6D6', color: '#A1907A' }}
+        >
+          <div className="font-medium mb-1" style={{ color: '#5C4A33' }}>此遊戲尚未使用格子</div>
+          格子適合<span style={{ color: '#5C4A33' }}>擲骰移動類</span>遊戲（棋子沿軌道前進、踩格觸發）。
+          若是<span style={{ color: '#5C4A33' }}>資源經濟類</span>（如淘金熱：採礦→冶煉→換寶石），
+          用上方「區域／供給池」即可，通常不需要格子。
+          <div className="mt-1.5">需要的話，點右上 + 或下方範本開始。</div>
         </div>
       )}
 
       <div className="flex gap-1.5 flex-wrap">
         <button
-          className="text-xs px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100"
+          className="text-xs px-2 py-1 rounded-lg border transition-all hover:-translate-y-0.5"
+          style={{ background: '#FFF7E8', color: '#E09B3D', borderColor: '#F0E6D6' }}
           onClick={() => addPreset('straight_10')}
         >直線10格</button>
         <button
-          className="text-xs px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100"
+          className="text-xs px-2 py-1 rounded-lg border transition-all hover:-translate-y-0.5"
+          style={{ background: '#FFF7E8', color: '#E09B3D', borderColor: '#F0E6D6' }}
           onClick={() => addPreset('basic_loop')}
         >循環20格</button>
         {cells.length > 0 && (
           <button
-            className="text-xs px-2 py-1 bg-red-50 text-red-500 border border-red-200 rounded hover:bg-red-100"
+            className="text-xs px-2 py-1 rounded-lg border transition-all hover:-translate-y-0.5"
+            style={{ background: '#FFF1F2', color: '#fb7185', borderColor: '#fecdd3' }}
             onClick={() => setCells([])}
           >清空</button>
         )}
@@ -914,7 +928,10 @@ const CellRow: React.FC<{
             />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-0.5">格子類型</label>
+            <label className="text-xs font-medium mb-0.5 flex items-center gap-1">
+              格子類型
+              <HelpHint hkey="cells.type" side="right" />
+            </label>
             <select
               className="w-full p-1.5 border rounded text-sm"
               value={cell.type}
