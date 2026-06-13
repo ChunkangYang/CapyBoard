@@ -19,3 +19,6 @@ dev.log
 
 # playwright-mcp 工作目錄
 .playwright-mcp/
+
+# session 異常記錄（含私人對話逐字，僅本機保留，不公開）
+docs/ANOMALY_2026-06-13_phantom-messages.md
