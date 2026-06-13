@@ -36,7 +36,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   };
 
   const sizeClass = wide
-    ? 'max-w-[15rem] whitespace-normal leading-relaxed text-left'
+    ? 'w-56 whitespace-normal leading-relaxed text-left'
     : 'whitespace-nowrap';
 
   return (
