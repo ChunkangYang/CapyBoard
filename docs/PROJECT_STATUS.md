@@ -1,19 +1,32 @@
 # CapyBoard — Project Status
 
-> 最後更新：2026-06-06
+> 最後更新：2026-07-05
 
 ## 專案概況
-桌遊設計工具，使用者可在瀏覽器中設計、編輯並試玩自製桌遊模組。
+**產品定位（2026-07-05 拍板）**：不只是單機工具，最終為 **線上多人 UGC 桌遊平台 + 虛擬經濟 + 授權/房間 DRM**。
+使用者用簡約編輯器設計「可玩且有美術」的桌遊，可打包分享/上架商城收虛擬貨幣，並開房間邀他人同玩。
+目標平台 Steam＋手機＋Web；主程式免費、遊戲需自製或商城購買；虛擬貨幣真錢充值不可提現；全面水豚化。
+框架：React 單一核心 + Capacitor/Tauri 打三平台，**不換遊戲引擎**。完整決策見 [LAUNCH_ASSESSMENT_2026-07-05.md](LAUNCH_ASSESSMENT_2026-07-05.md)。
 核心檔案位於 [src/](../src/)，模板位於 [src/schema/](../src/schema/)。
 
 ## 目前進度
+第一階段（單機工具 MVP）M1–M5 已完成：
 - M1 Core Foundation — ✅ 完成
 - M2 Complete Game Loop — ✅ 完成
 - M3 UX & Content — ✅ 完成
 - M4 Demo Ready — ✅ 完成
 - M5 運行時視覺棋盤 — ✅ 完成（S17–S19）
 
+第二階段（商品化路線）M6–M13 規劃完成，M6 進行中：
+- **M6 遊玩頁美術升級 — 🚧 進行中（第一刀）**
+- M7 手機/RWD → M8 CRA→Vite → M9 帳號+雲端 → M10 封包+授權 key → M11 商城+虛擬貨幣 → M12 線上多人房間 → M13 三平台上架
+
 詳見 [MILESTONES.md](MILESTONES.md)。
+
+## 最新：E2E 全面實測 + 商品化定位拍板（2026-07-05）
+- 全流程 E2E 實測通過（build/40 單元測試/0 console error），見 [EVIDENCES/E2E_2026-07-05.md](EVIDENCES/E2E_2026-07-05.md)。
+- 實測抓到待處理項：手機遊玩頁不可用、全站無水豚品牌、多處冷藍違反暖色準則、無音效/勝負演出。
+- 產品方向與框架/引擎抉擇拍板，M6–M13 里程碑成形，見 [LAUNCH_ASSESSMENT_2026-07-05.md](LAUNCH_ASSESSMENT_2026-07-05.md)。
 
 ## 最新完成：M5 運行時視覺棋盤（2026-06-06）
 「遊戲執行」過去不畫任何視覺棋盤，只用文字顯示。M5 補上視覺棋盤層：
@@ -23,13 +36,13 @@
 - 驗證見 [EVIDENCES/M5-RUNTIME-BOARD.md](EVIDENCES/M5-RUNTIME-BOARD.md)；引擎單元測試 40 案例全通過。
 
 ## 目前待做（下一步）
-專案 M1–M5 已全部完成。後續工作為：
+**M6 遊玩頁美術升級（第一刀）**，依序：
+1. ThemePack 資料結構 — 定義「一份 AI 生圖如何餵進遊戲」（背景/token/卡面/勝負演出圖層）
+2. 遊玩頁套主題包渲染 + 勝負演出 + 音效系統
+3. 無 zone 遊戲視覺化、全面水豚化、清冷藍違規
+4. Playwright 視覺驗證 + EVIDENCES
 
-1. 部署相關人工操作 — GitHub repo 已建立並 push（https://github.com/ChunkangYang/CapyBoard）；尚需手動啟用 GitHub Pages（Settings → Pages → Deploy from gh-pages branch）或 Vercel
-2. 瀏覽器端自動化驗收 — 已由 Playwright 跑完 A–I 大部分（見 [EVIDENCES/TEST_REPORT_2026-05-24.md](EVIDENCES/TEST_REPORT_2026-05-24.md)）；剩餘需人工：拖拉互動、淘金熱完整流程、格子序列完整流程、手機響應式
-3. 視使用者回饋進行優化（記錄到 [IMPROVE.md](IMPROVE.md) 或 [BUG.md](BUG.md)）
-4. 已知延後項目：
-   - Sprint 14 效能優化（大量 token、複雜規則）— 有需求再處理
+後續 M7–M13 見 [MILESTONES.md](MILESTONES.md)。延後項目：Sprint 14 效能優化（有需求再處理）。
 
 ## 已完成的程式碼
 - 棋盤系統（BoardCell、CellEvent、CellsPanel、moveToken）
