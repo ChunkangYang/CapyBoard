@@ -17,15 +17,23 @@
 - M4 Demo Ready — ✅ 完成
 - M5 運行時視覺棋盤 — ✅ 完成（S17–S19）
 
-第二階段（商品化路線）M6–M13 規劃完成，M6 進行中：
-- **M6 遊玩頁美術升級 — 🚧 進行中（第一刀）**
+第二階段（商品化路線）M6–M13 規劃完成，M6 首波完成：
+- **M6 遊玩頁美術升級 — ✅ 首波完成（待 AI 素材）**
 - M7 手機/RWD → M8 CRA→Vite → M9 帳號+雲端 → M10 封包+授權 key → M11 商城+虛擬貨幣 → M12 線上多人房間 → M13 三平台上架
 
 詳見 [MILESTONES.md](MILESTONES.md)。
 
-## 最新：E2E 全面實測 + 商品化定位拍板（2026-07-05）
-- 全流程 E2E 實測通過（build/40 單元測試/0 console error），見 [EVIDENCES/E2E_2026-07-05.md](EVIDENCES/E2E_2026-07-05.md)。
-- 實測抓到待處理項：手機遊玩頁不可用、全站無水豚品牌、多處冷藍違反暖色準則、無音效/勝負演出。
+## 最新：M6 遊玩頁美術升級首波完成（2026-07-14）
+遊玩體驗全面升級為「好看、能玩、有美術」：
+- **音效系統**：Web Audio 即時合成（無需音檔），動作/擲骰/得分/換人/勝負音效 + 靜音開關（`src/utils/sound.ts`）。
+- **勝負演出**：VictoryOverlay — 水豚歡呼 + 五彩碎片 + 勝利音效 + 再玩一次（`GameBoard.tsx`）。
+- **ThemePack 主題包**：4 內建主題（cozy/mine/magic/adventure）自動選配，遊玩頁套主題背景 + 氛圍；預留 imageUrl 供日後 AI 生圖無縫接入（`src/theme/themePacks.ts`）。
+- **無 zone 遊戲視覺化**：ThemedTable 主題桌面（水豚玩家卡 + 籌碼），不再純文字。
+- **全面水豚化**：Capybara SVG 吉祥物（`src/components/Capybara.tsx`）+ 命名統一 CapyBoard；清除全站冷藍違規改暖色。
+- 驗證：build 通過、0 console error、Playwright 截圖見 [EVIDENCES/](EVIDENCES/) M6-*.png。
+
+## 前次：E2E 全面實測 + 商品化定位拍板（2026-07-05）
+- 全流程 E2E 實測通過，見 [EVIDENCES/E2E_2026-07-05.md](EVIDENCES/E2E_2026-07-05.md)。
 - 產品方向與框架/引擎抉擇拍板，M6–M13 里程碑成形，見 [LAUNCH_ASSESSMENT_2026-07-05.md](LAUNCH_ASSESSMENT_2026-07-05.md)。
 
 ## 最新完成：M5 運行時視覺棋盤（2026-06-06）

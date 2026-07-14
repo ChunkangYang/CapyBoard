@@ -44,6 +44,6 @@
   ],
   "turn": { "currentPlayerId": "hero1", "actionsPerTurn": 3 },
   "board": { "items": [] },
-  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true, "backgroundColor": "#f0f9ff" },
-  "theme": { "primaryColor": "#0ea5e9" }
+  "boardConfig": { "width": 800, "height": 500, "gridSize": 40, "showGrid": true, "backgroundColor": "#F7F0FB" },
+  "theme": { "primaryColor": "#B89FD4" }
 }

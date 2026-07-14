@@ -114,7 +114,7 @@ export const FirstGameGuide: React.FC<FirstGameGuideProps> = ({ onClose }) => {
 
         {/* 操作頁籤提示 */}
         {current.tab && (
-          <div className="mx-5 mb-3 flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded px-3 py-1.5">
+          <div className="mx-5 mb-3 flex items-center gap-1.5 text-xs font-medium rounded px-3 py-1.5" style={{ color: '#B07A28', background: '#FDF4E3', border: '1px solid #F1E0C4' }}>
             <span>📂 操作位置：</span>
             <span className="font-semibold">{current.tab}</span>
           </div>

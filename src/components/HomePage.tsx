@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ModuleMeta } from '../utils/moduleStorage';
 import { GameModule } from '../engine/types';
 import { Plus, Upload, Edit, Play, Copy, Trash2, Users, FileText, X, LayoutTemplate } from 'lucide-react';
+import { Capybara } from './Capybara';
 
 interface HomePageProps {
   modules: Array<{ id: string; meta: ModuleMeta; module: GameModule }>;
@@ -134,8 +135,13 @@ export const HomePage: React.FC<HomePageProps> = ({
     <div className="max-w-4xl mx-auto py-8 px-4">
       {/* 標題區 */}
       <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">桌遊大師</h1>
-        <p className="text-gray-500">設計你的桌遊，分享你的創意</p>
+        <div className="flex justify-center mb-2">
+          <span style={{ animation: 'capy-float 4s ease-in-out infinite', display: 'inline-block' }}>
+            <Capybara size={72} mood="happy" />
+          </span>
+        </div>
+        <h1 className="text-4xl font-extrabold mb-1" style={{ color: '#5C4A33' }}>CapyBoard</h1>
+        <p style={{ color: '#A1907A' }}>水豚桌遊工坊 — 設計你的桌遊，分享你的創意</p>
       </div>
 
       {/* 操作列 */}

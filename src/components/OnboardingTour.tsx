@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
+import { Capybara } from './Capybara';
 import {
   Layers, Zap, BookOpen, Play, Trophy, ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
@@ -15,10 +16,10 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    icon: <Layers className="w-10 h-10 text-blue-500" />,
-    title: '歡迎使用桌遊大師！',
+    icon: <Capybara size={56} mood="happy" />,
+    title: '歡迎使用 CapyBoard！',
     description:
-      '桌遊大師讓你用視覺化介面設計自己的桌遊，不需要寫程式。' +
+      'CapyBoard 讓你用視覺化介面設計自己的桌遊，不需要寫程式。' +
       '你可以定義資源（Token）、玩家動作和勝利規則，然後馬上遊玩測試。',
     tip: '整個教學大約 2 分鐘，也可以隨時跳過。',
   },
@@ -56,7 +57,7 @@ const STEPS: Step[] = [
     tip: '一定要設定至少一個勝利條件，否則遊戲無法結束！',
   },
   {
-    icon: <Play className="w-10 h-10 text-blue-500" />,
+    icon: <Play className="w-10 h-10 text-orange-500" />,
     title: '步驟五：快速測試',
     description:
       '點擊頂部工具列的「⚡ 快速測試」按鈕，不用切換頁籤就能在右側面板試玩。' +
@@ -67,7 +68,7 @@ const STEPS: Step[] = [
     icon: <Trophy className="w-10 h-10 text-yellow-500" />,
     title: '你已準備好了！',
     description:
-      '以上就是桌遊大師的核心流程。嘗試從「骰子冒險」範例遊戲開始，' +
+      '以上就是 CapyBoard 的核心流程。嘗試從「骰子冒險」範例遊戲開始，' +
       '修改規則或新增動作，感受看看設計的樂趣吧！',
     tip: '有任何問題，點擊首頁右上角的「？ 使用說明」重新開啟教學。',
   },
@@ -91,10 +92,10 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* 進度條 */}
-        <div className="h-1 bg-gray-100">
+        <div className="h-1" style={{ background: '#F0E6D6' }}>
           <div
-            className="h-full bg-blue-500 transition-all duration-300"
-            style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+            className="h-full transition-all duration-300"
+            style={{ width: `${((step + 1) / STEPS.length) * 100}%`, background: '#F4B860' }}
           />
         </div>
 
@@ -110,13 +111,13 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onClose }) => {
           </div>
 
           <div className="flex flex-col items-center text-center gap-4 py-2">
-            <div className="p-3 bg-gray-50 rounded-full">
+            <div className="p-3 rounded-full" style={{ background: '#FBF3E4' }}>
               {current.icon}
             </div>
-            <h2 className="text-lg font-bold text-gray-800">{current.title}</h2>
-            <p className="text-sm text-gray-600 leading-relaxed">{current.description}</p>
+            <h2 className="text-lg font-bold" style={{ color: '#5C4A33' }}>{current.title}</h2>
+            <p className="text-sm leading-relaxed" style={{ color: '#6B5842' }}>{current.description}</p>
             {current.tip && (
-              <div className="w-full bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 text-xs text-blue-700 text-left">
+              <div className="w-full rounded-lg px-4 py-2.5 text-xs text-left" style={{ background: '#FDF4E3', border: '1px solid #F1E0C4', color: '#B07A28' }}>
                 💡 {current.tip}
               </div>
             )}

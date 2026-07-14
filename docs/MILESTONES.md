@@ -167,17 +167,19 @@
 > 框架決定：React 單一核心，Capacitor（手機）+ Tauri/Electron（Steam）打三平台，**不換遊戲引擎**。
 > 完整決策與理由見 [LAUNCH_ASSESSMENT_2026-07-05.md](LAUNCH_ASSESSMENT_2026-07-05.md)。
 
-## Milestone 6：遊玩頁美術升級（第一刀，進行中）
+## Milestone 6：遊玩頁美術升級（第一刀）✅ 首波完成
 > 讓單機遊玩體驗做到「不粗糙」。美術以免費 AI 生圖可達程度為基準，用 DOM/CSS + 圖片主題包，不引入 WebGL。
 
-- [ ] 主題包（ThemePack）資料結構：背景 / token 圖 / 卡面 / 勝負演出 各圖層，定義「一份 AI 圖如何餵進遊戲」
-- [ ] 遊玩頁套用主題包渲染（背景、token 改用圖、卡面）
-- [ ] 勝利/失敗演出（動畫 + 圖層 + 文案）
-- [ ] 音效系統（動作/擲骰/得分/勝負，含靜音開關）
-- [ ] 無 zone 遊戲（如骰子冒險）的視覺化，不再只有純文字面板
-- [ ] 全面水豚化 CapyBoard：logo、吉祥物、命名統一（取代「桌遊大師」）
-- [ ] 清除冷藍違規（Onboarding、玩家序號、當前玩家高亮、規則 Pxx、空白遊戲＋）改暖色
-- [ ] Playwright 視覺驗證 + EVIDENCES
+- [x] 主題包（ThemePack）資料結構：背景 / token / 氛圍 各圖層，預留 imageUrl（AI 圖填入即升級），4 內建主題（cozy/mine/magic/adventure）+ 自動選配（`src/theme/themePacks.ts`）
+- [x] 遊玩頁套用主題包渲染（主題背景漸層 + 氛圍漂浮 emoji）
+- [x] 勝利/失敗演出（VictoryOverlay：水豚歡呼 + 五彩碎片 + 音效 + 再玩一次）
+- [x] 音效系統（Web Audio 即時合成，無需素材；動作/擲骰/得分/換人/勝負，含靜音開關存 localStorage）（`src/utils/sound.ts`）
+- [x] 無 zone 遊戲（如骰子冒險）視覺化：ThemedTable 主題桌面，玩家卡 + 水豚 + 籌碼，不再只有純文字
+- [x] 全面水豚化 CapyBoard：Capybara SVG 吉祥物 + 命名統一（首頁/導覽/Onboarding 取代「桌遊大師」）（`src/components/Capybara.tsx`）
+- [x] 清除冷藍違規（Onboarding 圖示/提示/進度條、玩家序號、當前玩家高亮、規則 Pxx、theme-color、快速測試抽屜）改暖色
+- [x] Playwright 視覺驗證 + EVIDENCES（見 EVIDENCES/M6-*.png）
+- [ ] 後續：真正 AI 生圖素材填入 ThemePack.bgImageUrl / token 圖層（待美術產出）
+- [ ] 後續：擲骰/抽牌等更細緻的過場動畫
 
 ## Milestone 7：手機 / RWD + touch 拖放
 - [ ] 遊玩頁響應式（手機三欄改堆疊，目前 390px 不可用）
@@ -223,7 +225,7 @@
 | M3 UX & Content | 7月初 ~ 9月中 | 好用好看、有範例遊戲 | ✅ 完成（Sprint 10 部分延後） |
 | M4 Demo Ready | 9月中 ~ 11月底 | 品質打磨、可對外展示 | ✅ 完成 |
 | M5 運行時視覺棋盤 | 2026-06 起 | 遊戲執行畫出玩家區/供給池/格子軌道，token 互動視覺化 | ✅ 完成（S17–S19） |
-| **M6 遊玩頁美術升級** | 2026-07 起 | 主題包+音效+勝負演出+水豚化，遊玩體驗不粗糙 | 🚧 進行中（第一刀） |
+| **M6 遊玩頁美術升級** | 2026-07 起 | 主題包+音效+勝負演出+水豚化，遊玩體驗不粗糙 | ✅ 首波完成（待 AI 素材） |
 | M7 手機/RWD + touch | — | 遊玩頁響應式、編輯器 touch 拖放 | ⬜ 未開始 |
 | M8 建置現代化 | — | CRA → Vite、CI | ⬜ 未開始 |
 | M9 帳號+雲端 | — | 後端、登入、雲端存檔 | ⬜ 未開始 |

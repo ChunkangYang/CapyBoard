@@ -4,9 +4,12 @@ import { Button } from './ui/button';
 import { GameModule, GameState, Player, Token, BoardZone, BoardCell } from '../engine/types';
 import { RuleEngine } from '../engine/ruleEngine';
 import { TokenChip } from './TokenChip';
+import { Capybara } from './Capybara';
+import { pickThemePack, ThemePack } from '../theme/themePacks';
+import { playSfx, sfxForAction, isMuted, toggleMuted } from '../utils/sound';
 import {
   RotateCcw, Play, SkipForward, ChevronDown, ChevronRight,
-  Trophy, Swords, StepBack, PenLine, X,
+  Trophy, StepBack, PenLine, X, Volume2, VolumeX,
 } from 'lucide-react';
 
 interface GameBoardProps {
@@ -52,12 +55,82 @@ const DiceOverlay: React.FC<{
       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
       onClick={onClose}
     >
-      <div className={`bg-white rounded-2xl shadow-2xl p-8 text-center transition-transform ${rolling ? 'animate-bounce' : 'scale-110'}`}>
+      <div
+        className={`rounded-2xl p-8 text-center transition-transform ${rolling ? 'animate-bounce' : 'scale-110'}`}
+        style={{ background: '#FFFDF8', boxShadow: '0 12px 40px rgba(120,80,30,0.35)', border: '2px solid #F0E6D6' }}
+      >
         <div className="text-8xl mb-3 select-none">{face}</div>
-        <div className="text-2xl font-bold text-gray-700">
+        <div className="text-2xl font-bold" style={{ color: '#5C4A33' }}>
           {rolling ? '擲骰中…' : `擲出了 ${result.result}！`}
         </div>
-        <div className="text-sm text-gray-400 mt-1">d{result.sides}</div>
+        <div className="text-sm mt-1" style={{ color: '#A1907A' }}>d{result.sides}</div>
+      </div>
+    </div>
+  );
+};
+
+// ─── 勝利/失敗慶祝演出 ──────────────────────────────────────────────────────────
+const CONFETTI = ['🎉', '⭐', '✨', '🎊', '🍯', '🏅'];
+const VictoryOverlay: React.FC<{
+  gameState: GameState;
+  onReset: () => void;
+  onDismiss: () => void;
+}> = ({ gameState, onReset, onDismiss }) => {
+  const won = !!gameState.winner;
+  const totalTurns = Object.values(gameState.turnCounts).reduce((a, b) => a + b, 0);
+  const pieces = React.useMemo(
+    () => Array.from({ length: 28 }).map((_, i) => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 0.8,
+      dur: 2.4 + Math.random() * 1.8,
+      emoji: CONFETTI[i % CONFETTI.length],
+      size: 16 + Math.random() * 18,
+    })),
+    []
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(60,40,20,0.45)' }}>
+      {/* 五彩碎片 */}
+      {won && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {pieces.map((p, i) => (
+            <span
+              key={i}
+              className="absolute select-none"
+              style={{
+                left: `${p.left}%`, top: '-8%', fontSize: p.size,
+                animation: `capy-confetti ${p.dur}s linear ${p.delay}s infinite`,
+              }}
+            >{p.emoji}</span>
+          ))}
+        </div>
+      )}
+      <div
+        className="relative rounded-3xl px-10 py-8 text-center max-w-sm mx-4"
+        style={{ background: '#FFFDF8', boxShadow: '0 16px 50px rgba(120,80,30,0.4)', border: '2px solid #F0E6D6', animation: 'capy-pop 0.5s cubic-bezier(0.34,1.56,0.64,1)' }}
+      >
+        <div className="flex justify-center mb-2" style={{ animation: won ? 'capy-hop 0.9s ease-in-out infinite' : undefined }}>
+          <Capybara size={96} mood={won ? 'cheer' : 'chill'} />
+        </div>
+        {won ? (
+          <>
+            <div className="text-3xl font-extrabold mb-1" style={{ color: '#E09B3D' }}>🏆 勝利！</div>
+            <div className="text-lg font-semibold" style={{ color: '#5C4A33' }}>{gameState.winner!.name} 獲勝</div>
+          </>
+        ) : (
+          <>
+            <div className="text-3xl font-extrabold mb-1" style={{ color: '#B07A28' }}>遊戲結束</div>
+            <div className="text-lg font-semibold" style={{ color: '#5C4A33' }}>平局！</div>
+          </>
+        )}
+        <div className="mt-2 text-sm" style={{ color: '#A1907A' }}>共進行 {totalTurns} 回合</div>
+        <div className="mt-5 flex gap-2 justify-center">
+          <Button onClick={onReset}>
+            <RotateCcw className="w-4 h-4 mr-1" /> 再玩一次
+          </Button>
+          <Button variant="outline" onClick={onDismiss}>看看棋盤</Button>
+        </div>
       </div>
     </div>
   );
@@ -74,8 +147,9 @@ const SetupScreen: React.FC<{
   return (
     <div className="max-w-lg mx-auto mt-8 space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-800">{module.gameName.zh}</h2>
-        <p className="text-gray-500 text-sm mt-1">確認遊戲設定並開始</p>
+        <div className="flex justify-center mb-1"><Capybara size={64} mood="happy" /></div>
+        <h2 className="text-2xl font-bold" style={{ color: '#5C4A33' }}>{module.gameName.zh}</h2>
+        <p className="text-sm mt-1" style={{ color: '#A1907A' }}>確認遊戲設定並開始</p>
       </div>
 
       <Card>
@@ -85,11 +159,11 @@ const SetupScreen: React.FC<{
             const tokenCounts: Record<string, number> = {};
             player.tokens.forEach(tid => { tokenCounts[tid] = (tokenCounts[tid] ?? 0) + 1; });
             return (
-              <div key={player.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
-                <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-bold">
+              <div key={player.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: '#FBF3E4' }}>
+                <span className="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold" style={{ background: '#F4B860' }}>
                   {idx + 1}
                 </span>
-                <span className="font-medium text-sm">{player.name}</span>
+                <span className="font-medium text-sm" style={{ color: '#5C4A33' }}>{player.name}</span>
                 <div className="flex flex-wrap gap-1 ml-auto">
                   {Object.entries(tokenCounts).map(([tid, cnt]) => {
                     const token = module.tokens.find(t => t.id === tid);
@@ -166,34 +240,6 @@ const TurnHistoryPanel: React.FC<{ gameState: GameState }> = ({ gameState }) => 
     </Card>
   );
 };
-
-// ─── Game End Screen ──────────────────────────────────────────────────────────
-const GameEndScreen: React.FC<{
-  gameState: GameState;
-  onReset: () => void;
-}> = ({ gameState, onReset }) => (
-  <div className="text-center p-6 bg-gradient-to-b from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl">
-    {gameState.winner ? (
-      <>
-        <Trophy className="w-12 h-12 text-yellow-500 mx-auto mb-2" />
-        <div className="text-2xl font-bold text-gray-800 mb-1">遊戲結束！</div>
-        <div className="text-lg text-yellow-700 font-semibold">{gameState.winner.name} 獲勝！</div>
-      </>
-    ) : (
-      <>
-        <Swords className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-        <div className="text-2xl font-bold text-gray-800 mb-1">遊戲結束</div>
-        <div className="text-gray-500">平局！</div>
-      </>
-    )}
-    <div className="mt-3 text-sm text-gray-500">
-      共進行 {Object.values(gameState.turnCounts).reduce((a, b) => a + b, 0)} 回合
-    </div>
-    <Button className="mt-4" onClick={onReset}>
-      <RotateCcw className="w-4 h-4 mr-1" /> 重新開始
-    </Button>
-  </div>
-);
 
 // ─── State Editor Modal ───────────────────────────────────────────────────────
 const StateEditorModal: React.FC<{
@@ -411,12 +457,69 @@ const CellTrack: React.FC<{ gameState: GameState }> = ({ gameState }) => {
   );
 };
 
-const RuntimeBoard: React.FC<{ gameState: GameState; engine: RuleEngine }> = ({ gameState, engine }) => {
+/** 無 zone/cells 的遊戲：給一張主題感的「玩家桌面」，讓每位玩家的資源以籌碼呈現，不再只有純文字。 */
+const ThemedTable: React.FC<{ gameState: GameState; theme: ThemePack }> = ({ gameState, theme }) => {
+  const players = gameState.module.players;
+  return (
+    <Card>
+      <CardHeader className="py-2 px-3"><CardTitle className="text-sm" style={{ color: '#5C4A33' }}>遊戲桌面</CardTitle></CardHeader>
+      <CardContent className="py-3 px-3">
+        <div className="flex flex-wrap gap-3 justify-center">
+          {players.map(player => {
+            const isCurrent = player.id === gameState.currentPlayer.id && gameState.phase === 'playing';
+            const counts: Record<string, number> = {};
+            player.tokens.forEach(tid => { counts[tid] = (counts[tid] ?? 0) + 1; });
+            const entries = Object.entries(counts);
+            return (
+              <div
+                key={player.id}
+                className="rounded-2xl p-3 min-w-[150px] transition-all"
+                style={{
+                  background: theme.panel,
+                  border: `2px ${isCurrent ? 'solid' : 'dashed'} ${isCurrent ? theme.accentDark : '#E7D8BF'}`,
+                  boxShadow: isCurrent ? `0 0 0 3px ${theme.accent}44, 0 6px 16px rgba(120,80,30,0.12)` : '0 3px 10px rgba(120,80,30,0.06)',
+                  transform: isCurrent ? 'translateY(-2px)' : undefined,
+                }}
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Capybara size={26} mood={isCurrent ? 'happy' : 'chill'} />
+                  <span className="font-semibold text-sm" style={{ color: '#5C4A33' }}>{player.name}</span>
+                  {isCurrent && <span className="ml-auto text-[10px] font-bold" style={{ color: theme.accentDark }}>● 當前</span>}
+                </div>
+                <div className="text-xs mb-1.5" style={{ color: theme.muted }}>分數 {player.score}</div>
+                <div className="flex flex-wrap gap-2 min-h-[40px] items-center">
+                  {entries.length === 0
+                    ? <span className="text-xs" style={{ color: theme.muted }}>尚無資源</span>
+                    : entries.map(([tid, cnt]) => {
+                        const token = gameState.module.tokens.find(t => t.id === tid);
+                        if (!token) return null;
+                        return (
+                          <div key={tid} className="flex flex-col items-center">
+                            <TokenChip token={token} size={32} />
+                            <span className="text-[10px] font-bold mt-0.5" style={{ color: '#5C4A33' }}>×{cnt}</span>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const RuntimeBoard: React.FC<{ gameState: GameState; engine: RuleEngine; theme: ThemePack }> = ({ gameState, engine, theme }) => {
   const cfg = gameState.module.boardConfig;
   const zones = cfg?.zones ?? [];
   const cells = cfg?.cells ?? [];
   const items = gameState.module.board?.items ?? [];
-  if (!cfg || (zones.length === 0 && cells.length === 0 && items.length === 0)) return null;
+  // 什麼視覺元素都沒有時，改用主題桌面呈現，避免只有純文字
+  if (!cfg || (zones.length === 0 && cells.length === 0 && items.length === 0)) {
+    return <ThemedTable gameState={gameState} theme={theme} />;
+  }
 
   const bg = cfg.backgroundColor ?? '#FFFDF8';
   const gridStyle: React.CSSProperties = cfg.showGrid ? {
@@ -463,6 +566,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
     gameModule.actions[0]?.id ?? ''
   );
   const [showDice, setShowDice] = useState(false);
+  const [muted, setMutedState] = useState(isMuted());
+  const [celebrationDismissed, setCelebrationDismissed] = useState(false);
+  const wasEndedRef = useRef(false);
+  const theme = React.useMemo(() => pickThemePack(gameModule), [gameModule]);
 
   // ── State snapshots for rewind ──
   const [snapshots, setSnapshots] = useState<GameState[]>([]);
@@ -493,24 +600,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
     const state = engineRef.current.getGameState();
     setGameState({ ...state });
     if (state.lastDiceResult) setShowDice(true);
+    // 勝負演出：第一次進入 ended 時放勝/負音效
+    if (state.phase === 'ended' && !wasEndedRef.current) {
+      wasEndedRef.current = true;
+      setCelebrationDismissed(false);
+      playSfx(state.winner ? 'win' : 'lose');
+    }
+    if (state.phase !== 'ended') wasEndedRef.current = false;
   };
 
   const handleStart = () => {
     saveSnapshot();
     engineRef.current.startGame();
+    playSfx('start');
     refresh();
   };
 
   const handleExecuteAction = () => {
     if (!selectedActionId) return;
     saveSnapshot();
+    const action = engineRef.current.getGameState().module.actions.find(a => a.id === selectedActionId);
     engineRef.current.executeAction(selectedActionId);
+    const after = engineRef.current.getGameState();
+    // 動作音效（擲骰的音效交給骰子動畫時機更貼合，這裡仍先給回饋）
+    if (action) playSfx(sfxForAction(action.type));
+    if (after.phase !== 'ended' && after.winner === undefined) {
+      // 若剛好觸發加分規則，補一聲清脆得分音
+    }
     refresh();
   };
 
   const handleEndTurn = () => {
     saveSnapshot();
     engineRef.current.endTurn();
+    if (engineRef.current.getGameState().phase !== 'ended') playSfx('turn');
     refresh();
   };
 
@@ -521,6 +644,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
     setSelectedActionId(gameModule.actions[0]?.id ?? '');
     setShowDice(false);
     setSnapshots([]);
+    wasEndedRef.current = false;
+    setCelebrationDismissed(false);
+  };
+
+  const handleToggleMute = () => {
+    const next = toggleMuted();
+    setMutedState(next);
+    if (!next) playSfx('click');
   };
 
   const currentPlayer = gameState.currentPlayer;
@@ -559,7 +690,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="flex flex-col gap-4 rounded-2xl p-4 relative overflow-hidden"
+      style={{ background: theme.bg }}
+    >
+      {/* 主題氛圍裝飾（漂浮 emoji） */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+        {theme.ambiance.map((em, i) => (
+          <span
+            key={i}
+            className="absolute select-none"
+            style={{
+              left: `${8 + (i * 23) % 84}%`,
+              top: `${10 + (i * 37) % 70}%`,
+              fontSize: 30 + (i % 3) * 8,
+              opacity: 0.13,
+              animation: `capy-float ${5 + i}s ease-in-out ${i * 0.4}s infinite`,
+            }}
+          >{em}</span>
+        ))}
+      </div>
+
       {/* 骰子動畫覆蓋層 */}
       {showDice && gameState.lastDiceResult && (
         <DiceOverlay
@@ -577,15 +728,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
         />
       )}
 
-      {/* 遊戲結束 */}
-      {gameState.phase === 'ended' && (
-        <GameEndScreen gameState={gameState} onReset={handleReset} />
+      {/* 勝負慶祝演出 */}
+      {gameState.phase === 'ended' && !celebrationDismissed && (
+        <VictoryOverlay
+          gameState={gameState}
+          onReset={handleReset}
+          onDismiss={() => setCelebrationDismissed(true)}
+        />
       )}
 
       {/* 視覺棋盤：玩家資源區 / 供給池殘量 / 格子軌道（即時讀真相層） */}
-      <RuntimeBoard gameState={gameState} engine={engineRef.current} />
+      <RuntimeBoard gameState={gameState} engine={engineRef.current} theme={theme} />
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 relative z-10 flex-wrap lg:flex-nowrap">
         {/* 玩家狀態 */}
         <div className="w-64 space-y-3">
           <h2 className="text-lg font-semibold">玩家</h2>
@@ -598,15 +753,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
             return (
               <Card
                 key={player.id}
-                className={`${isCurrent ? 'border-blue-400 bg-blue-50' : ''} ${isLoser ? 'opacity-50' : ''}`}
+                className={isLoser ? 'opacity-50' : ''}
+                style={isCurrent ? { borderColor: '#E09B3D', background: '#FFF4DF', boxShadow: '0 0 0 2px rgba(244,184,96,0.35)' } : undefined}
               >
                 <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    {isCurrent && <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />}
-                    {gameState.winner?.id === player.id && <Trophy className="w-3.5 h-3.5 text-yellow-500" />}
-                    {isLoser && <span className="text-red-400">✗</span>}
+                  <CardTitle className="text-sm flex items-center gap-2" style={{ color: '#5C4A33' }}>
+                    {isCurrent && <Capybara size={20} mood="happy" />}
+                    {gameState.winner?.id === player.id && <Trophy className="w-3.5 h-3.5" style={{ color: '#E09B3D' }} />}
+                    {isLoser && <span style={{ color: '#D98' }}>✗</span>}
                     {player.name}
-                    {isCurrent && <span className="text-xs text-blue-500 font-normal">（當前）</span>}
+                    {isCurrent && <span className="text-xs font-normal" style={{ color: '#E09B3D' }}>（當前）</span>}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-2 px-3 text-xs text-gray-600 space-y-1.5">
@@ -624,7 +780,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
                         const token = gameState.module.tokens.find(t => t.id === tid);
                         const cell = cells[idx];
                         return (
-                          <span key={tid} className="text-blue-600 font-medium">
+                          <span key={tid} className="font-medium" style={{ color: '#B07A28' }}>
                             {token?.icon}{token?.name ?? tid}：格{idx}「{cell?.name ?? '?'}」
                           </span>
                         );
@@ -687,14 +843,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>執行動作</span>
-                  {limit > 0 && (
-                    <span className={`text-sm font-normal px-2 py-0.5 rounded ${
-                      actionBlocked ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {used} / {limit} 次
-                    </span>
-                  )}
+                  <span style={{ color: '#5C4A33' }}>執行動作</span>
+                  <span className="flex items-center gap-2">
+                    {limit > 0 && (
+                      <span className="text-sm font-normal px-2 py-0.5 rounded-full" style={
+                        actionBlocked
+                          ? { background: '#FBE0DA', color: '#C0603E' }
+                          : { background: '#F6EEDF', color: '#8A745A' }
+                      }>
+                        {used} / {limit} 次
+                      </span>
+                    )}
+                    <button
+                      onClick={handleToggleMute}
+                      title={muted ? '開啟音效' : '關閉音效'}
+                      className="p-1.5 rounded-full transition-colors hover:bg-[#F6EEDF]"
+                      style={{ color: muted ? '#BBA995' : '#E09B3D' }}
+                    >
+                      {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -767,11 +935,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
 
           {/* 事件日誌 */}
           <Card>
-            <CardHeader><CardTitle>事件日誌</CardTitle></CardHeader>
+            <CardHeader><CardTitle style={{ color: '#5C4A33' }}>事件日誌</CardTitle></CardHeader>
             <CardContent>
-              <div className="h-48 overflow-y-auto bg-gray-50 rounded p-2 space-y-1 text-xs text-gray-700 font-mono">
+              <div className="h-48 overflow-y-auto rounded-lg p-2 space-y-1 text-xs font-mono" style={{ background: '#FBF3E4', color: '#6B5842' }}>
                 {gameState.eventLog.length === 0 ? (
-                  <div className="text-gray-400">尚無事件</div>
+                  <div style={{ color: '#B8A88F' }}>尚無事件</div>
                 ) : (
                   [...gameState.eventLog].reverse().map((log, i) => (
                     <div key={i}>{log}</div>
@@ -784,27 +952,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
 
         {/* 規則總覽 */}
         <div className="w-56 space-y-3">
-          <h2 className="text-lg font-semibold">規則</h2>
+          <h2 className="text-lg font-semibold" style={{ color: '#5C4A33' }}>規則</h2>
           {gameState.module.rules
             .slice()
             .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
             .map(rule => (
               <Card key={rule.id} className="text-xs">
                 <CardContent className="py-2 px-3 space-y-1">
-                  <div className="font-medium flex justify-between">
+                  <div className="font-medium flex justify-between" style={{ color: '#5C4A33' }}>
                     <span className="truncate">{rule.id}</span>
                     {(rule.priority ?? 0) !== 0 && (
-                      <span className="text-gray-400 ml-1 shrink-0">P{rule.priority}</span>
+                      <span className="ml-1 shrink-0 px-1.5 rounded-full text-[10px] font-bold" style={{ background: '#F6EEDF', color: '#B07A28' }}>P{rule.priority}</span>
                     )}
                   </div>
-                  <div className="text-gray-500">觸發：{rule.trigger}</div>
-                  <div className="text-gray-500">
+                  <div style={{ color: '#A1907A' }}>觸發：{rule.trigger}</div>
+                  <div style={{ color: '#A1907A' }}>
                     條件：{rule.condition.type}
                     {rule.condition.tokenId && ` (${rule.condition.tokenId} ≥ ${rule.condition.count})`}
                     {rule.condition.amount !== undefined && ` (分數 ${rule.condition.operator ?? '>='} ${rule.condition.amount})`}
                     {rule.condition.type === 'playerTurnCount' && ` (回合 ${rule.condition.operator ?? '>='} ${rule.condition.count})`}
                   </div>
-                  <div className="text-gray-500">
+                  <div style={{ color: '#A1907A' }}>
                     動作：{rule.action.type}
                     {rule.action.amount !== undefined && ` (+${rule.action.amount})`}
                   </div>
@@ -813,7 +981,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameModule }) => {
             ))
           }
           {gameState.module.rules.length === 0 && (
-            <div className="text-xs text-gray-400">尚無規則</div>
+            <div className="text-xs" style={{ color: '#B8A88F' }}>尚無規則</div>
           )}
         </div>
       </div>

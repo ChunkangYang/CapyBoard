@@ -25,6 +25,7 @@ import { Button } from './components/ui/button';
 import { Tooltip } from './components/ui/tooltip';
 import { OnboardingTour, shouldShowOnboarding } from './components/OnboardingTour';
 import { FirstGameGuide } from './components/FirstGameGuide';
+import { Capybara } from './components/Capybara';
 
 type Tab = 'editor' | 'rules' | 'board';
 type View = 'home' | 'edit' | 'play';
@@ -99,13 +100,13 @@ const QuickTestDrawer: React.FC<{
     <div className="absolute inset-0 bg-black/30" onClick={onClose} />
     {/* 面板本體 */}
     <div className="relative bg-white shadow-2xl w-[720px] max-w-[90vw] flex flex-col h-full overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b bg-gray-50 shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0" style={{ background: '#FBF3E4', borderColor: '#F0E6D6' }}>
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-blue-500" />
-          <span className="font-semibold text-gray-700 text-sm">快速測試</span>
-          <span className="text-xs text-gray-400">（基於目前儲存的遊戲設定）</span>
+          <Zap className="w-4 h-4" style={{ color: '#E09B3D' }} />
+          <span className="font-semibold text-sm" style={{ color: '#5C4A33' }}>快速測試</span>
+          <span className="text-xs" style={{ color: '#A1907A' }}>（基於目前儲存的遊戲設定）</span>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <button onClick={onClose} className="hover:opacity-70" style={{ color: '#A1907A' }}>
           <X className="w-5 h-5" />
         </button>
       </div>
@@ -282,15 +283,17 @@ const App: React.FC = () => {
   if (view === 'home') {
     return (
       <DndProvider backend={HTML5Backend}>
-        <div className="min-h-screen bg-gray-50">
-          <header className="bg-white border-b shadow-sm sticky top-0 z-10">
+        <div className="min-h-screen" style={{ background: '#FBF6EC' }}>
+          <header className="sticky top-0 z-10" style={{ background: '#FFFDF8', borderBottom: '1px solid #F0E6D6', boxShadow: '0 1px 6px rgba(120,80,30,0.06)' }}>
             <div className="container mx-auto px-4 py-3 flex items-center gap-2">
-              <h1 className="text-xl font-bold text-gray-800">桌遊大師</h1>
+              <Capybara size={30} mood="happy" />
+              <h1 className="text-xl font-extrabold" style={{ color: '#5C4A33' }}>CapyBoard</h1>
               <div className="ml-auto flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500 text-xs gap-1"
+                  className="text-xs gap-1"
+                  style={{ color: '#8A745A' }}
                   onClick={() => setShowGuide(true)}
                   title="如何設計你的第一個遊戲"
                 >
@@ -299,7 +302,8 @@ const App: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500 text-xs gap-1"
+                  className="text-xs gap-1"
+                  style={{ color: '#8A745A' }}
                   onClick={() => setShowTour(true)}
                   title="重新開啟功能介紹"
                 >
